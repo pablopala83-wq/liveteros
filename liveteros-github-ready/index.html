@@ -137,6 +137,7 @@
               <button type="button" id="startReception" class="tag-card tag-action" data-tag="RECEPCIÓN KICK"><span class="selection-check">✓</span><span>RECEPCIÓN<br>KICK</span></button>
               <button type="button" id="startPenalty" class="tag-card tag-action restart-card" data-tag="PENAL"><span class="selection-check">✓</span><span>TAP<br>PENAL</span></button>
               <button type="button" id="startFreeKick" class="tag-card tag-action restart-card" data-tag="FREE KICK"><span class="selection-check">✓</span><span>FREE KICK</span></button>
+              <button type="button" id="startRestart" class="tag-card tag-action restart-card" data-tag="REINICIO"><span class="selection-check">✓</span><span>REINICIO</span></button>
             </div>
             <div id="originMeta" class="origin-meta empty">Elegí un origen para iniciar la secuencia.</div>
           </section>
@@ -148,6 +149,10 @@
               <button type="button" id="break" class="event-card tag-action" data-event="QUIEBRE"><span class="event-symbol">ϟ</span><span>QUIEBRE</span><span class="event-check">✓</span></button>
               <button type="button" id="kick" class="event-card tag-action" data-event="KICK"><span class="event-symbol">↗</span><span>KICK</span><span class="event-check">✓</span></button>
               <button type="button" id="advantage" class="event-card tag-action" data-event="VENTAJA"><span class="event-symbol">A</span><span>VENTAJA</span><span class="event-check">✓</span></button>
+              <button type="button" id="penaltyUru" class="event-card tag-action danger-event" data-event="PENAL URU"><span class="event-symbol">P</span><span>PENAL URU</span><span class="event-check">✓</span></button>
+              <button type="button" id="penaltyRival" class="event-card tag-action" data-event="PENAL RIVAL"><span class="event-symbol">P</span><span>PENAL RIVAL</span><span class="event-check">✓</span></button>
+              <button type="button" id="tryEvent" class="event-card tag-action" data-event="TRY"><span class="event-symbol">5</span><span>TRY</span><span class="event-check">✓</span></button>
+              <button type="button" id="restartEvent" class="event-card tag-action" data-event="REINICIO"><span class="event-symbol">R</span><span>REINICIO</span><span class="event-check">✓</span></button>
             </div>
             <div class="match-admin-tools">
               <button type="button" id="substitution" class="admin-event-btn">CAMBIO</button>
@@ -156,9 +161,10 @@
             <button type="button" id="voiceTagBtn" class="voice-tag-btn">🎙 VOZ</button>
             <div class="finish-tools">
               <button type="button" id="undoAction" class="undo-btn tag-action">↶ DESHACER</button>
-              <button type="button" id="finish" class="finish-btn tag-action"><span class="flag">⚑</span> FIN SECUENCIA</button>
+              <button type="button" id="reviewFlag" class="undo-btn tag-action">⚑ REVISAR</button>
+              <button type="button" id="finish" class="finish-btn tag-action"><span class="flag">■</span> PÉRDIDA / FIN</button>
             </div>
-            <div class="finish-help">Deshacer revierte la última acción dentro de la secuencia.</div>
+            <div class="finish-help">Deshacer revierte la última acción. Revisar deja una marca sin frenar el tagging.</div>
           </section>
 
           <aside id="stateBox" class="tag-panel current-panel">
@@ -168,8 +174,11 @@
               <div><dt>Origen</dt><dd id="stateOrigin">—</dd></div>
               <div><dt>Zona inicio</dt><dd id="stateZone">—</dd></div>
               <div><dt>Inicio</dt><dd id="stateStart">—</dd></div>
+              <div><dt>Patrón</dt><dd id="statePattern">—</dd></div>
               <div><dt>Eventos</dt><dd id="stateEvents">—</dd></div>
             </dl>
+            <div class="panel-title mini-title">ÚLTIMOS EVENTOS</div>
+            <div id="miniTimeline" class="mini-timeline"><div class="mini-empty">Sin eventos todavía</div></div>
           </aside>
         </div>
 
@@ -202,13 +211,14 @@
             <div class="panel-title">SECUENCIAS CERRADAS</div>
             <div class="card-actions">
               <button type="button" id="exportJson" class="small-btn ghost">JSON</button>
-              <button type="button" id="exportCsv" class="small-btn ghost">CSV</button>
+              <button type="button" id="exportCsv" class="small-btn ghost">SECUENCIAS CSV</button>
+              <button type="button" id="exportPossessionsCsv" class="small-btn ghost">POSESIONES CSV</button>
               <button type="button" id="resetMatch" class="small-btn danger">REINICIAR</button>
             </div>
           </div>
           <div class="table-wrap">
             <table class="sequence-table">
-              <thead><tr><th>HORA</th><th>POSESIÓN</th><th>ORIGEN</th><th>ZONA INICIO</th><th>ZONA FINAL</th><th>RESULTADO</th><th>VALORACIÓN</th><th>EVENTOS</th><th>EDITAR</th></tr></thead>
+              <thead><tr><th>HORA</th><th>POSESIÓN</th><th>ORIGEN</th><th>ZONA INICIO</th><th>ZONA FINAL</th><th>RESULTADO</th><th>PATRÓN</th><th>EVENTOS</th><th>EDITAR</th></tr></thead>
               <tbody id="sequenceRows"><tr><td colspan="8" class="empty-row">Sin secuencias todavía</td></tr></tbody>
             </table>
           </div>

@@ -833,3 +833,5 @@
   .voice-parsed{font-size:9px;padding:6px}
   .voice-examples{font-size:8px}
 }
+/* V1 Evento · Posesión · Secuencia */
+.mini-title{margin-top:16px;font-size:11px;opacity:.8}.mini-timeline{display:flex;flex-direction:column;gap:7px;margin-top:8px}.mini-event{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.035);font-size:12px}.mini-time{font-weight:800;opacity:.7}.mini-desc{line-height:1.25}.mini-empty{opacity:.5;font-size:12px}.danger-event{outline:1px solid rgba(224,85,85,.35)}
