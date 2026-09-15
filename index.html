@@ -149,14 +149,13 @@
               <button type="button" id="break" class="event-card tag-action" data-event="QUIEBRE"><span class="event-symbol">ϟ</span><span>QUIEBRE</span><span class="event-check">✓</span></button>
               <button type="button" id="kick" class="event-card tag-action" data-event="KICK"><span class="event-symbol">↗</span><span>KICK</span><span class="event-check">✓</span></button>
               <button type="button" id="advantage" class="event-card tag-action" data-event="VENTAJA"><span class="event-symbol">A</span><span>VENTAJA</span><span class="event-check">✓</span></button>
-              <button type="button" id="penaltyUru" class="event-card tag-action danger-event" data-event="PENAL URU"><span class="event-symbol">P</span><span>PENAL URU</span><span class="event-check">✓</span></button>
-              <button type="button" id="penaltyRival" class="event-card tag-action" data-event="PENAL RIVAL"><span class="event-symbol">P</span><span>PENAL RIVAL</span><span class="event-check">✓</span></button>
               <button type="button" id="tryEvent" class="event-card tag-action" data-event="TRY"><span class="event-symbol">5</span><span>TRY</span><span class="event-check">✓</span></button>
               <button type="button" id="dropGoal" class="event-card tag-action" data-event="DROP"><span class="event-symbol">3</span><span>DROP</span><span class="event-check">✓</span></button>
             </div>
             <div class="match-admin-tools">
               <button type="button" id="substitution" class="admin-event-btn">CAMBIO</button>
               <button type="button" id="cardEvent" class="admin-event-btn">TARJETA</button>
+              <button type="button" id="penaltyShot" class="admin-event-btn">PALOS</button>
               <button type="button" id="entered22Quick" class="admin-event-btn">+ ENTRÓ 22</button>
               <button type="button" id="passedY40Quick" class="admin-event-btn">+ PASÓ Y40</button>
             </div>
@@ -296,7 +295,7 @@
         <div id="fixedDash" class="dash-panel hidden dashboard-stack fixed-theme">
           <div class="fixed-heading"><span>ATAQUE · URU</span><small>Formaciones propias</small></div>
           <div class="dashboard-grid two">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedAttackLineMenPct"></div></div>
+            
             <div class="metric-card"><div class="panel-kicker">LINES NO OBTENIDOS</div><div id="fixedAttackLineMissed"></div></div>
             <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedAttackLineZone"></div></div>
             <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
@@ -304,7 +303,7 @@
 
           <div class="fixed-heading rival"><span>DEFENSA</span><small>Formaciones propias del rival</small></div>
           <div class="dashboard-grid two">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedDefenseLineMenPct"></div></div>
+            
             <div class="metric-card"><div class="panel-kicker">LINES NO OBTENIDOS</div><div id="fixedDefenseLineMissed"></div></div>
             <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedDefenseLineZone"></div></div>
             <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
