@@ -1,0 +1,12 @@
+{
+  "name": "Los Teros Live",
+  "short_name": "Teros Live",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#061b36",
+  "theme_color": "#061b36",
+  "description": "Tagging en vivo y dashboard para análisis de rugby de Los Teros.",
+  "icons": [
+    {"src":"assets/teros-shield.png","sizes":"any","type":"image/png","purpose":"any maskable"}
+  ]
+}
