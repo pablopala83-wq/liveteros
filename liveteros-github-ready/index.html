@@ -79,7 +79,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.2.2</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.3</div>
         </div>
       </div>
 
@@ -111,6 +111,7 @@
           <button type="button" id="startClock" class="small-btn primary">▶ INICIAR</button>
           <button type="button" id="endClock" class="small-btn">■ FIN DEL TIEMPO</button>
           <button type="button" id="adjustClock" class="small-btn ghost">AJUSTAR</button>
+          <button type="button" id="attackDirection" class="small-btn direction-btn">DIRECCIÓN URU</button>
         </div>
       </section>
 
@@ -155,6 +156,16 @@
               <button type="button" id="tryEvent" class="event-card tag-action" data-event="TRY"><span class="event-symbol">5</span><span>TRY</span><span class="event-check">✓</span></button>
               <button type="button" id="dropGoal" class="event-card tag-action" data-event="DROP"><span class="event-symbol">3</span><span>DROP</span><span class="event-check">✓</span></button>
             </div>
+            <div id="kickResolver" class="kick-resolver hidden" aria-live="polite">
+              <div id="kickResolverLabel" class="kick-resolver-label">KICK PENDIENTE</div>
+              <div class="kick-resolver-grid">
+                <button type="button" id="kickRivalReceive" class="kick-resolve-btn"><span id="kickRivalReceiveLabel">RIVAL RECIBE</span></button>
+                <button type="button" id="kickOwnRecover" class="kick-resolve-btn"><span id="kickOwnRecoverLabel">PROPIO RECUPERA</span></button>
+                <button type="button" id="kickTouchResolve" class="kick-resolve-btn">TOUCH</button>
+                <button type="button" id="kickDeadResolve" class="kick-resolve-btn">MUERTA</button>
+              </div>
+            </div>
+            <div class="kick-qualifier-row"><button type="button" id="counterattackQuick" class="counterattack-quick hidden">+ CONTRAATAQUE</button><button type="button" id="fifty22Quick" class="counterattack-quick hidden">+ 50:22</button></div>
             <div class="match-admin-tools">
               <button type="button" id="substitution" class="admin-event-btn">CAMBIO</button>
               <button type="button" id="cardEvent" class="admin-event-btn">TARJETA</button>

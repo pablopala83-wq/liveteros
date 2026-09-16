@@ -844,3 +844,21 @@
 }
 
 .build-badge{display:inline-flex;align-items:center;margin-top:3px;padding:2px 7px;border:1px solid rgba(255,255,255,.32);border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.08em;opacity:.9}
+
+/* V2.3 · directional zones + contextual kicking flow */
+.direction-btn{border-color:#8cb8da;background:#eef8ff;color:#075f9f;white-space:nowrap}
+.kick-resolver{margin-top:7px;border:1px solid #82c7f0;background:#eef9ff;border-radius:9px;padding:7px}
+.kick-resolver-label{font-size:9px;font-weight:950;letter-spacing:.05em;color:#096fae;margin-bottom:5px;text-align:center}
+.kick-resolver-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.kick-resolve-btn{min-height:36px;border:1px solid #79bce5;background:#fff;color:#0a4671;border-radius:7px;font-size:9px;font-weight:950;cursor:pointer;padding:4px}
+.kick-resolve-btn:active{background:#dff3ff}
+.counterattack-quick{width:100%;margin-top:6px;min-height:32px;border:1px solid #65b7e9;background:#f5fbff;color:#0875ba;border-radius:8px;font-size:9px;font-weight:950;cursor:pointer}
+@media(min-width:900px) and (max-width:1400px) and (max-height:900px){
+  .direction-btn{min-height:34px!important;padding:5px 8px!important;font-size:9px!important}
+  .kick-resolver{margin-top:4px;padding:4px}
+  .kick-resolver-label{font-size:7px;margin-bottom:3px}
+  .kick-resolver-grid{gap:3px}
+  .kick-resolve-btn{min-height:27px;font-size:7px;padding:2px}
+  .counterattack-quick{min-height:25px;margin-top:3px;font-size:7px}
+}
+.kick-qualifier-row{display:grid;grid-template-columns:1fr 1fr;gap:5px}.kick-qualifier-row .counterattack-quick{margin-top:5px}

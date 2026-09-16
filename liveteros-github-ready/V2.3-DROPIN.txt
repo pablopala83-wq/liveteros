@@ -1,0 +1,7 @@
+V2.3 DROP-IN PARA /liveteros-github-ready
+
+Subir directamente el CONTENIDO de este paquete dentro de la carpeta liveteros-github-ready del repositorio.
+Los archivos index.html, app.js, styles.css y sw.js deben reemplazar a los existentes.
+No subir la carpeta contenedora liveteros-v2.3-dropin como subcarpeta.
+
+Comprobación visual después del deploy: el encabezado debe mostrar V2.3.
