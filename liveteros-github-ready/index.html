@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#061b36" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Teros Live" />
@@ -76,7 +79,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.2.2</div>
         </div>
       </div>
 
@@ -137,7 +140,7 @@
               <button type="button" id="startReception" class="tag-card tag-action" data-tag="RECEPCIÓN KICK"><span class="selection-check">✓</span><span>RECEPCIÓN<br>KICK</span></button>
               <button type="button" id="startPenalty" class="tag-card tag-action restart-card" data-tag="PENAL"><span class="selection-check">✓</span><span>TAP<br>PENAL</span></button>
               <button type="button" id="startFreeKick" class="tag-card tag-action restart-card" data-tag="FREE KICK"><span class="selection-check">✓</span><span>FREE KICK</span></button>
-              <button type="button" id="startRestart" class="tag-card tag-action restart-card" data-tag="REINICIO"><span class="selection-check">✓</span><span>REINICIO</span></button>
+              <button type="button" id="startRestart" class="tag-card tag-action restart-card" data-tag="REINICIO"><span class="selection-check">✓</span><span>SALIDA /<br>REINICIO</span></button>
             </div>
             <div id="originMeta" class="origin-meta empty">Elegí un origen para iniciar la secuencia.</div>
           </section>
@@ -149,14 +152,15 @@
               <button type="button" id="break" class="event-card tag-action" data-event="QUIEBRE"><span class="event-symbol">ϟ</span><span>QUIEBRE</span><span class="event-check">✓</span></button>
               <button type="button" id="kick" class="event-card tag-action" data-event="KICK"><span class="event-symbol">↗</span><span>KICK</span><span class="event-check">✓</span></button>
               <button type="button" id="advantage" class="event-card tag-action" data-event="VENTAJA"><span class="event-symbol">A</span><span>VENTAJA</span><span class="event-check">✓</span></button>
-              <button type="button" id="penaltyUru" class="event-card tag-action danger-event" data-event="PENAL URU"><span class="event-symbol">P</span><span>PENAL URU</span><span class="event-check">✓</span></button>
-              <button type="button" id="penaltyRival" class="event-card tag-action" data-event="PENAL RIVAL"><span class="event-symbol">P</span><span>PENAL RIVAL</span><span class="event-check">✓</span></button>
               <button type="button" id="tryEvent" class="event-card tag-action" data-event="TRY"><span class="event-symbol">5</span><span>TRY</span><span class="event-check">✓</span></button>
-              <button type="button" id="restartEvent" class="event-card tag-action" data-event="REINICIO"><span class="event-symbol">R</span><span>REINICIO</span><span class="event-check">✓</span></button>
+              <button type="button" id="dropGoal" class="event-card tag-action" data-event="DROP"><span class="event-symbol">3</span><span>DROP</span><span class="event-check">✓</span></button>
             </div>
             <div class="match-admin-tools">
               <button type="button" id="substitution" class="admin-event-btn">CAMBIO</button>
               <button type="button" id="cardEvent" class="admin-event-btn">TARJETA</button>
+              <button type="button" id="penaltyShot" class="admin-event-btn">PALOS</button>
+              <button type="button" id="entered22Quick" class="admin-event-btn">+ ENTRÓ 22</button>
+              <button type="button" id="passedY40Quick" class="admin-event-btn">+ PASÓ Y40</button>
             </div>
             <button type="button" id="voiceTagBtn" class="voice-tag-btn">🎙 VOZ</button>
             <div class="finish-tools">
@@ -177,7 +181,7 @@
               <div><dt>Patrón</dt><dd id="statePattern">—</dd></div>
               <div><dt>Eventos</dt><dd id="stateEvents">—</dd></div>
             </dl>
-            <div class="panel-title mini-title">ÚLTIMOS EVENTOS</div>
+            <div class="panel-title mini-title">ÚLTIMAS SECUENCIAS</div>
             <div id="miniTimeline" class="mini-timeline"><div class="mini-empty">Sin eventos todavía</div></div>
           </aside>
         </div>
@@ -294,7 +298,7 @@
         <div id="fixedDash" class="dash-panel hidden dashboard-stack fixed-theme">
           <div class="fixed-heading"><span>ATAQUE · URU</span><small>Formaciones propias</small></div>
           <div class="dashboard-grid two">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedAttackLineMenPct"></div></div>
+            
             <div class="metric-card"><div class="panel-kicker">LINES NO OBTENIDOS</div><div id="fixedAttackLineMissed"></div></div>
             <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedAttackLineZone"></div></div>
             <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
@@ -302,7 +306,7 @@
 
           <div class="fixed-heading rival"><span>DEFENSA</span><small>Formaciones propias del rival</small></div>
           <div class="dashboard-grid two">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedDefenseLineMenPct"></div></div>
+            
             <div class="metric-card"><div class="panel-kicker">LINES NO OBTENIDOS</div><div id="fixedDefenseLineMissed"></div></div>
             <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedDefenseLineZone"></div></div>
             <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>

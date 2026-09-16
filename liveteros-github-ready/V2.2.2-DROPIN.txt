@@ -1,0 +1,7 @@
+V2.2.2 DROP-IN PARA /liveteros-github-ready
+
+Subir estos archivos DIRECTAMENTE dentro de liveteros-github-ready.
+Los nombres app.js, styles.css, sw.js e index.html coinciden con los existentes para que GitHub los reemplace.
+No subir la carpeta contenedora liveteros-v2.2.2-dropin.
+
+Comprobacion: el encabezado debe mostrar V2.2.2 y no debe haber botones PENAL URU / PENAL RIVAL en el Home.
