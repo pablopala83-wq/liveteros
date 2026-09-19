@@ -1,0 +1,26 @@
+{
+  "brand": "Los Teros",
+  "version": "1.0",
+  "colors": {
+    "navy950": "#031738",
+    "navy800": "#08294A",
+    "celeste": "#00A9E0",
+    "white": "#F7FAFC",
+    "positive": "#2ED17D",
+    "negative": "#F05B66",
+    "warning": "#E7A93C"
+  },
+  "typography": {
+    "title": "Arial Black",
+    "body": "Arial"
+  },
+  "radius": {"app": 12},
+  "spacingBase": 8,
+  "live": {
+    "titlePx": "24-28",
+    "buttonPx": "18-22",
+    "detailPx": "14-16",
+    "scorePx": "40-52",
+    "touchTargetMinPx": 56
+  }
+}

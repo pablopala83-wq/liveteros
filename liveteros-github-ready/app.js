@@ -1562,10 +1562,11 @@ async function resolvePendingKick(kind){
     st.sequence.events.push({type:'TOUCH',mode:'KICK DIRECTO AL TOUCH',team:kick.team,z,time:stamp(),...timingData()});st.pendingKick=null;st.lastReception=null;
     closeSeq('TOUCH',z);return;
   }
-  if(kind==='DEAD'){
-    const where=await flow('KICK · pelota muerta · dónde terminó',['IN-GOAL',...zoneOrder()]);const z=where==='IN-GOAL'?'INGOAL':where;
-    kick.zTo=z;kick.outcome='PELOTA MUERTA';kick.possessionAfter=null;kick.resolved=true;st.pendingKick=null;st.lastReception=null;
-    closeSeq('DEAD BALL',z);return;
+  if(kind==='DEAD_IN_GOAL'){
+    const z='INGOAL';
+    kick.zTo=z;kick.outcome='DEAD IN-GOAL';kick.possessionAfter=null;kick.resolved=true;st.pendingKick=null;st.lastReception=null;
+    st.sequence.events.push({type:'DEAD IN-GOAL',mode:'KICK',team:kick.team,z,time:stamp(),...timingData()});
+    closeSeq('DEAD IN-GOAL',z);return;
   }
 }
 onTap('#kick',async()=>{
@@ -1579,7 +1580,7 @@ onTap('#kick',async()=>{
 onTap('#kickRivalReceive',async()=>{await resolvePendingKick('RIVAL_RECEIVE')});
 onTap('#kickOwnRecover',async()=>{await resolvePendingKick('OWN_RECOVER')});
 onTap('#kickTouchResolve',async()=>{await resolvePendingKick('TOUCH')});
-onTap('#kickDeadResolve',async()=>{await resolvePendingKick('DEAD')});
+onTap('#kickDeadResolve',async()=>{await resolvePendingKick('DEAD_IN_GOAL')});
 onTap('#counterattackQuick',async()=>{const rec=findLastReceptionEvent();if(!rec)return;rec.counterattack=true;if(st.sequence?.origin==='RECEPCIÓN KICK'&&st.sequence.meta)st.sequence.meta.counterattack=true;st.lastReception=null;save();render()});
 onTap('#fifty22Quick',async()=>{const k=findLastTouchKick();if(!k)return;k.fifty22=true;save();render()});
 
@@ -1645,7 +1646,7 @@ onTap('#finish',async()=>{
 onTap('#entered22Quick',async()=>{const seq=st.closed?.[0];if(!seq)return;pushUndo();if(seq.meta?.entry22Counted||seq.entered22AndExited)return;seq.meta=seq.meta||{};seq.meta.entry22Counted=true;seq.entered22AndExited=true;st.entries[seq.team]=(st.entries[seq.team]||0)+1;save();render()});
 onTap('#passedY40Quick',async()=>{pushUndo();const sequences=[];if(st.sequence)sequences.push(st.sequence);sequences.push(...(st.closed||[]));let kick=null;for(const seq of sequences){kick=[...(seq.events||[])].reverse().find(e=>e.type==='KICK'&&e.team==='URU'&&e.zFrom==='Z1'&&!e.passedY40);if(kick)break}if(!kick){alert('No encontré un kick URU reciente desde Z1 para marcar.');return}kick.passedY40=true;save();render()});
 onTap('#penaltyShot',async()=>{if(!(await ensureClock()))return;const last=st.closed?.[0];if(!last||!['PENAL URU','PENAL RIVAL'].includes(last.result)){alert('No hay un penal recién cerrado para asociar a palos.');return}pushUndo();const beneficiary=last.result==='PENAL URU'?'RIVAL':'URU';const outcome=await flow(`PENAL A PALOS ${teamLabel(beneficiary)} · resultado`,['CONVERTIDO +3','ERRADO']);last.events=last.events||[];last.events.push({type:'PENAL A PALOS',outcome,time:stamp(),...timingData()});if(outcome==='CONVERTIDO +3')addScore(beneficiary,3,'PENAL A PALOS',last.origin);else save();render();});
-onTap('#dropGoal',async()=>{if(!(await ensureClock())||!st.sequence)return;const outcome=await flow('DROP · resultado',['CONVERTIDO +3','FALLADO · SIGUE VIVA','FALLADO · PELOTA MUERTA']);addEvent('DROP',{outcome});if(outcome==='CONVERTIDO +3'){addScore(st.team,3,'DROP',st.sequence.origin);await closeSequenceWithZone('DROP CONVERTIDO',target22Zone(st.team))}else if(outcome==='FALLADO · PELOTA MUERTA'){const z=await zone('DROP FALLADO · zona final');await closeSequenceWithZone('DEAD BALL',z)}});
+onTap('#dropGoal',async()=>{if(!(await ensureClock())||!st.sequence)return;const outcome=await flow('DROP · resultado',['CONVERTIDO +3','FALLADO · SIGUE VIVA','FALLADO · DEAD IN-GOAL']);addEvent('DROP',{outcome});if(outcome==='CONVERTIDO +3'){addScore(st.team,3,'DROP',st.sequence.origin);await closeSequenceWithZone('DROP CONVERTIDO',target22Zone(st.team))}else if(outcome==='FALLADO · DEAD IN-GOAL'){await closeSequenceWithZone('DEAD IN-GOAL','INGOAL')}});
 $('#exportJson').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.json`,'application/json',JSON.stringify(st,null,2));$('#exportCsv').onclick=()=>download(`URU-${st.opponent}-SECUENCIAS-${Date.now()}.csv`,'text/csv;charset=utf-8',csv());$('#exportPossessionsCsv').onclick=()=>download(`URU-${st.opponent}-POSESIONES-${Date.now()}.csv`,'text/csv;charset=utf-8',possessionsCsv());$('#resetMatch').onclick=()=>{if(currentRole==='viewer'||!confirm('¿Reiniciar este partido? Se borrarán sus eventos.'))return;stopTimer();const opp=st.opponent,color=st.opponentColor,created=st.createdAt;st={...defaultState(opp,color),createdAt:created};save();render()};
 $$('.tab').forEach(b=>b.onclick=()=>{if(currentRole==='viewer'&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','attack','defense','kicking','fixed'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
