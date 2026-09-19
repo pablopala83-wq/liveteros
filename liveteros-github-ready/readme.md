@@ -325,3 +325,6 @@ Publishable key: incluida en `app.js` (es una key pública de frontend).
 - Se pueden encadenar hasta 60 deshacer consecutivos.
 - El historial ya no se borra al abrir/cerrar secuencias.
 - Cambio manual de posesión, voz, cambios/tarjetas y eventos principales quedan cubiertos.
+
+
+V2.6 White Base: fondo general claro con identidad navy/celeste.
