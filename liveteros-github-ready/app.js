@@ -4,12 +4,10 @@ const SUPABASE_URL='https://lrkywcgsxcbvzusgmlrh.supabase.co';
 const SUPABASE_KEY='sb_publishable_A2ZTec3Na7ZzpkdVY2MOgQ_7LDN8lti';
 const CACHE='teros-live-v4-cache', ACTIVE='teros-live-v4-active';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const other=t=>t==='URU'?'RIVAL':t==='RIVAL'?'URU':null;
+const other=t=>t==='URU'?'RIVAL':'URU';
 const safe=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-const defaultState=(opponent='RIVAL',color='#C8102E')=>({opponent,opponentColor:color,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),team:'URU',nextRestartTeam:null,sequence:null,closed:[],launches:[],entries:{URU:0,RIVAL:0},breaks:{URU:0,RIVAL:0},valuation:{URU:{POSITIVA:0,NEGATIVA:0},RIVAL:{POSITIVA:0,NEGATIVA:0}},penalties:{attackURU:0,defenseURU:0},penaltyReasons:{attackURU:{},defenseURU:{}},penaltyJerseys:{},penaltyEvents:[],reviewFlags:[],roster:{},pointsOrigin:{URU:{},RIVAL:{}},score:{URU:0,RIVAL:0},scoreEvents:[],playerEvents:[],period:'1T',seconds:0,running:false,clockStarted:{'1T':false,'2T':false},realSeconds:{'1T':0,'2T':0},realRunning:false,attackDirections:{'1T':null,'2T':null},pendingKick:null,lastReception:null});
-let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', currentRole='viewer', channel=null, syncTimer=null, saving=false, dirty=false, undoStack=[], activeFlowReject=null;
-class FlowCancelled extends Error{constructor(){super('FLOW_CANCELLED');this.name='FlowCancelled'}}
-const isFlowCancelled=e=>e&&e.name==='FlowCancelled';
+const defaultState=(opponent='RIVAL',color='#C8102E')=>({opponent,opponentColor:color,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),team:'URU',sequence:null,closed:[],launches:[],entries:{URU:0,RIVAL:0},breaks:{URU:0,RIVAL:0},valuation:{URU:{POSITIVA:0,NEGATIVA:0},RIVAL:{POSITIVA:0,NEGATIVA:0}},penalties:{attackURU:0,defenseURU:0},penaltyReasons:{attackURU:{},defenseURU:{}},penaltyJerseys:{},penaltyEvents:[],roster:{},pointsOrigin:{URU:{},RIVAL:{}},score:{URU:0,RIVAL:0},scoreEvents:[],playerEvents:[],period:'1T',seconds:0,running:false});
+let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', currentRole='viewer', channel=null, syncTimer=null, saving=false, dirty=false, undoStack=[];
 function cacheAll(){try{return JSON.parse(localStorage.getItem(CACHE)||'{}')}catch{return {}}}
 function cacheMatch(id,state,meta={}){const c=cacheAll();c[id]={state:{...state,running:false},meta};localStorage.setItem(CACHE,JSON.stringify(c))}
 function getCached(id){return cacheAll()[id]||null}
@@ -40,8 +38,14 @@ function lineStructureLabel(obj={}){
   if(!men)return '—';
   return plusOne?`${men}+1`:`${men}`;
 }
+function lineThrowLabel(value){
+  const v=String(value||'').toUpperCase();
+  if(v==='ATRÁS'||v==='ATRAS'||v==='FONDO'||v==='COLA')return 'COLA';
+  return v||'—';
+}
 function originDisplay(x){
   if(!x)return '—';
+  if(x.origin==='LINE'&&x.meta?.men)return `LINE · ${lineStructureLabel(x.meta)}`;
   return x.origin||'—';
 }
 function eventDisplay(e){
@@ -55,7 +59,7 @@ function eventDisplay(e){
   if(e.type==='KICK'){
     const actor=e.team==='URU'?'URU':(st?.opponent||'RIVAL');
     const zoneText=e.zFrom&&e.zTo?`${zoneName(e.zFrom)}→${zoneName(e.zTo)}`:zoneName(e.zTo||e.z);
-    const bits=['KICK',e.kickType,actor,zoneText,e.outcome,e.touchMode,e.fifty22?'50:22':null].filter(Boolean);
+    const bits=['KICK',e.kickType,actor,zoneText,e.outcome,e.touchMode].filter(Boolean);
     return bits.join(' · ');
   }
   if(e.type==='TOUCH'&&e.mode)return `TOUCH · ${e.mode}`;
@@ -83,7 +87,6 @@ function sequenceConsequence(x){
   if(x.result==='TRY'){
     return conv?.outcome==='CONVERTIDA +2'?'TRY · 7 PTS':'TRY · 5 PTS';
   }
-  if(x.result==='PENAL TRY')return 'PENAL TRY · 7 PTS';
   if(shot){
     return shot.outcome==='CONVERTIDO +3'?'A PALOS · +3':'A PALOS · ERRADO';
   }
@@ -97,22 +100,15 @@ function sequenceConsequence(x){
 }
 function removeCachedMatch(id){const c=cacheAll();delete c[id];localStorage.setItem(CACHE,JSON.stringify(c));if(localStorage.getItem(ACTIVE)===id)localStorage.removeItem(ACTIVE)}
 function fmtSeconds(sec){return `${String(Math.floor((sec||0)/60)).padStart(2,'0')}:${String((sec||0)%60).padStart(2,'0')}`}
-function now(){return fmtSeconds(st?.seconds||0)}
-function currentRealSeconds(){if(!st)return 0;st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realStartEpoch=st.realStartEpoch||{'1T':null,'2T':null};if(st.realRunning&&st.realStartEpoch[st.period])return Math.max(st.realSeconds[st.period]||0,Math.floor((Date.now()-st.realStartEpoch[st.period])/1000));return st.realSeconds[st.period]||0}
-function realNow(){return fmtSeconds(currentRealSeconds())}
-function stamp(){return `${st.period} ${now()}`}
-function timingData(){const rs=currentRealSeconds();if(st?.realSeconds)st.realSeconds[st.period]=rs;return {period:st.period,matchSeconds:st.seconds||0,realSeconds:rs,matchTime:stamp(),realTime:`${st.period} ${fmtSeconds(rs)}`}}
-function teamLabel(t){return t==='URU'?'URU':t==='RIVAL'?(st?.opponent||'RIVAL'):'—'}
+function now(){return fmtSeconds(st?.seconds||0)} function stamp(){return `${st.period} ${now()}`}
+function teamLabel(t){return t==='URU'?'URU':(st?.opponent||'RIVAL')}
 function setSync(text,cls='ok'){let el=$('#syncStatus');if(!el){el=document.createElement('span');el.id='syncStatus';el.className='sync-badge';$('#clockStatus').after(el)}el.textContent=text;el.className=`sync-badge ${cls}`}
 function onlineUI(){const online=navigator.onLine;const os=$('#onlineStatus');if(os)os.textContent=online?'ONLINE':'OFFLINE';document.body.classList.toggle('offline',!online);if(!online)setSync('OFFLINE · guardado local','pending')}
 async function cloudSave(force=false){if(!activeId||!st||!user||currentRole==='viewer')return;dirty=true;cacheMatch(activeId,st,{opponent:st.opponent,opponentColor:st.opponentColor,role:currentRole});if(!navigator.onLine){setSync('PENDIENTE DE SINCRONIZAR','pending');return}if(!force){clearTimeout(syncTimer);syncTimer=setTimeout(()=>cloudSave(true),350);return}if(saving)return;saving=true;st.updatedAt=new Date().toISOString();setSync('SINCRONIZANDO…','pending');const {error}=await sb.from('matches').update({opponent_name:st.opponent,opponent_color:st.opponentColor,live_state:{...st,running:false},uru_score:st.score?.URU||0,opponent_score:st.score?.RIVAL||0,updated_at:new Date().toISOString()}).eq('id',activeId);saving=false;if(error){console.error(error);setSync('ERROR DE SINCRONIZACIÓN','error');return}dirty=false;setSync('SINCRONIZADO','ok')}
 function save(){if(!activeId||!st)return;st.updatedAt=new Date().toISOString();cacheMatch(activeId,st,{opponent:st.opponent,opponentColor:st.opponentColor,role:currentRole});cloudSave(false)}
-function ensureTimerLoop(){if(timer)return;timer=setInterval(()=>{if(!st)return;let changed=false;if(st.realRunning){st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realSeconds[st.period]=currentRealSeconds();changed=true}if(st.running){st.seconds++;changed=true}if(changed){renderClock();save()}},1000)}
-function startTimer(){if(!st||currentRole==='viewer')return;st.clockStarted=st.clockStarted||{'1T':false,'2T':false};st.realSeconds=st.realSeconds||{'1T':0,'2T':0};if(!st.clockStarted[st.period]){st.clockStarted[st.period]=true;st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realStartEpoch=st.realStartEpoch||{'1T':null,'2T':null};st.realStartEpoch[st.period]=Date.now()-(st.realSeconds[st.period]||0)*1000;st.realRunning=true}st.running=true;ensureTimerLoop();renderClock();save()}
-function pauseTimer(){if(!st)return;st.running=false;ensureTimerLoop();renderClock();save()}
-function endPeriodTimer(){if(!st)return;if(st.realRunning){st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realSeconds[st.period]=currentRealSeconds()}st.running=false;st.realRunning=false;renderClock();save()}
-function stopTimer(){if(st){st.running=false;st.realRunning=false}clearInterval(timer);timer=null;if(st){renderClock();save()}}
-function renderClock(){if(!st)return;st.clockStarted=st.clockStarted||{'1T':false,'2T':false};$('#clock').textContent=now();$('#period1').classList.toggle('active',st.period==='1T');$('#period2').classList.toggle('active',st.period==='2T');const started=!!st.clockStarted[st.period];$('#clockStatus').textContent=st.running?'▶ RELOJ EN CURSO':started?'Ⅱ RELOJ PAUSADO':'DETENIDO';const b=$('#startClock');if(b)b.textContent=st.running?'Ⅱ PAUSAR':started?'▶ REANUDAR':'▶ INICIAR'}
+function startTimer(){if(!st||st.running||currentRole==='viewer')return;st.running=true;timer=setInterval(()=>{st.seconds++;renderClock();save()},1000);renderClock()}
+function stopTimer(){if(st)st.running=false;clearInterval(timer);timer=null;if(st){renderClock();save()}}
+function renderClock(){if(!st)return;$('#clock').textContent=now();$('#period1').classList.toggle('active',st.period==='1T');$('#period2').classList.toggle('active',st.period==='2T');$('#clockStatus').textContent=st.running?'▶ EN CURSO':'DETENIDO'}
 function flashButton(el){if(!el)return;el.classList.add('pressed');setTimeout(()=>el.classList.remove('pressed'),220)}
 const ZONE_NAMES={Z1:'Extrema Defensa',Z2:'Gestación DEF',Z3:'Gestación OF',Z4:'Zona Garra'};
 function zoneName(z){return ZONE_NAMES[z]||z||'—'}
@@ -123,39 +119,10 @@ function choiceClass(v){
   return '';
 }
 function choiceLabel(v){return ZONE_NAMES[v]||v}
-function cancelActiveFlow(){
-  if(!activeFlowReject)return false;
-  const reject=activeFlowReject;activeFlowReject=null;
-  const f=$('#flow');if(f){f.classList.add('hidden');f.innerHTML=''}
-  reject(new FlowCancelled());return true;
-}
-function flow(title,buttons){
-  if(activeFlowReject)cancelActiveFlow();
-  const f=$('#flow');f.classList.remove('hidden');
-  f.innerHTML=`<div class="flow-title">${safe(title)}</div><div class="flow-grid">${buttons.map(b=>`<button type="button" class="choice${choiceClass(b)}" data-v="${safe(b)}">${safe(choiceLabel(b))}</button>`).join('')}</div>`;
-  return new Promise((res,rej)=>{
-    activeFlowReject=rej;
-    f.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{
-      const value=b.dataset.v;activeFlowReject=null;flashButton(b);
-      setTimeout(()=>{f.classList.add('hidden');f.innerHTML='';res(value)},90);
-    }));
-  });
-}
-function currentAttackDirection(){st.attackDirections=st.attackDirections||{'1T':null,'2T':null};return st.attackDirections[st.period]||null}
-function oppositeDirection(d){return d==='RIGHT'?'LEFT':d==='LEFT'?'RIGHT':null}
-function zoneOrder(){return currentAttackDirection()==='LEFT'?['Z4','Z3','Z2','Z1']:['Z1','Z2','Z3','Z4']}
-const zone=t=>flow(t,zoneOrder());
-async function ensureAttackDirection(){
-  st.attackDirections=st.attackDirections||{'1T':null,'2T':null};
-  if(st.attackDirections[st.period])return true;
-  if(st.period==='2T'&&st.attackDirections['1T']){st.attackDirections['2T']=oppositeDirection(st.attackDirections['1T']);save();render();return true}
-  const v=await flow(`${st.period} · dirección de ataque URU`,['← URU ATACA IZQUIERDA','URU ATACA DERECHA →']);
-  const d=v.includes('IZQUIERDA')?'LEFT':'RIGHT';st.attackDirections[st.period]=d;
-  if(st.period==='1T')st.attackDirections['2T']=oppositeDirection(d);
-  save();render();return true;
-}
-async function ensureClock(){if(!(await ensureAttackDirection()))return false;if(st.running||st.seconds>0)return true;const v=await flow('El reloj no empezó · ¿hace cuánto empezó este tiempo?',['30 s','1 min','2 min','3 min','5 min','OTRO']);if(v==='OTRO'){const raw=prompt('Ingresá minutos:segundos, por ejemplo 4:30');if(!raw)return false;const p=raw.split(':');st.seconds=(parseInt(p[0]||'0',10)*60)+parseInt(p[1]||'0',10)}else st.seconds={'30 s':30,'1 min':60,'2 min':120,'3 min':180,'5 min':300}[v];startTimer();save();return true}
-async function canStart(){if(!st.sequence)return true;const z=currentBallZone(st.sequence)||st.sequence.zStart||null;const oldStart=st.sequence.start;closeSeq('POR REVISAR',z,null,{needsReview:true,autoClosed:true});st.reviewFlags=st.reviewFlags||[];st.reviewFlags.unshift({time:stamp(),...timingData(),sequenceStart:oldStart,team:st.team,note:'CIERRE AUTOMÁTICO · REVISAR'});save();render();return true}
+function flow(title,buttons){const f=$('#flow');f.classList.remove('hidden');f.innerHTML=`<div class="flow-title">${safe(title)}</div><div class="flow-grid">${buttons.map(b=>`<button type="button" class="choice${choiceClass(b)}" data-v="${safe(b)}">${safe(choiceLabel(b))}</button>`).join('')}</div>`;return new Promise(res=>f.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{flashButton(b);setTimeout(()=>{f.classList.add('hidden');res(b.dataset.v)},90)})))}
+const zone=t=>flow(t,['Z1','Z2','Z3','Z4']);
+async function ensureClock(){if(st.running||st.seconds>0)return true;const v=await flow('El reloj no empezó · ¿hace cuánto empezó este tiempo?',['30 s','1 min','2 min','3 min','5 min','OTRO']);if(v==='OTRO'){const raw=prompt('Ingresá minutos:segundos, por ejemplo 4:30');if(!raw)return false;const p=raw.split(':');st.seconds=(parseInt(p[0]||'0',10)*60)+parseInt(p[1]||'0',10)}else st.seconds={'30 s':30,'1 min':60,'2 min':120,'3 min':180,'5 min':300}[v];startTimer();save();return true}
+async function canStart(){if(!st.sequence)return true;const a=await flow('Ya hay una secuencia abierta',['VOLVER','CERRAR COMO OTRO']);if(a==='VOLVER')return false;const z=await zone('Zona final');const val=await flow('Valoración',['POSITIVA','NEGATIVA']);closeSeq('OTRO',z,val);return true}
 function target22Zone(team){return team==='URU'?'Z4':'Z1'}
 function cloneJSON(v){return JSON.parse(JSON.stringify(v))}
 function undoFingerprint(v){
@@ -172,8 +139,7 @@ function pushUndo(){
 }
 function clearUndo(){undoStack=[]}
 function undoLastAction(){
-  cancelActiveFlow();
-  if(!st||!undoStack.length){render();return}
+  if(!st||!undoStack.length)return;
   const snap=undoStack.pop();
   stopTimer();
   st=cloneJSON(snap.state);
@@ -181,38 +147,17 @@ function undoLastAction(){
   save();render();
 }
 function maybeCountEntry22(z){const seq=st.sequence;if(!seq||!z||z!==target22Zone(seq.team))return false;seq.meta=seq.meta||{};if(seq.meta.entry22Counted)return false;seq.meta.entry22Counted=true;st.entries[seq.team]=(st.entries[seq.team]||0)+1;return true}
-function possessionMode(team){return team==='URU'?'ATA':'DEF'}
-function ensureSequenceModel(seq=st.sequence){
-  if(!seq)return null;
-  seq.events=seq.events||[];seq.meta=seq.meta||{};seq.possessions=seq.possessions||[];
-  if(!seq.possessions.length){seq.possessions.push({id:1,team:seq.team||st.team,start:seq.start||stamp(),startEvent:seq.origin||'INICIO',end:null,endEvent:null,...timingData()})}
-  return seq;
-}
-function currentPossession(seq=st.sequence){ensureSequenceModel(seq);return seq?.possessions?.[seq.possessions.length-1]||null}
-function possessionPattern(seq){ensureSequenceModel(seq);return (seq?.possessions||[]).map(p=>possessionMode(p.team)).join('-')||'—'}
-function switchPossession(nextTeam,reason,z=null){
-  const seq=ensureSequenceModel();if(!seq)return;
-  const cur=currentPossession(seq);if(cur&&cur.team===nextTeam)return;
-  if(cur&&!cur.end){cur.end=stamp();cur.endEvent=reason;cur.endZone=z||null}
-  seq.possessions.push({id:seq.possessions.length+1,team:nextTeam,start:stamp(),startEvent:reason,startZone:z||null,end:null,endEvent:null,...timingData()});
-  st.team=nextTeam;
-}
-function openSeq(origin,z,meta={}){st.nextRestartTeam=null;st.sequence={team:st.team,origin,zStart:z,start:stamp(),events:[],meta,possessions:[{id:1,team:st.team,start:stamp(),startEvent:origin,startZone:z,end:null,endEvent:null,...timingData()}],...timingData()};maybeCountEntry22(z);save();render()}
-function addEvent(type,data={}){if(!st.sequence)return;ensureSequenceModel();st.sequence.events.push({type,time:stamp(),team:data.team||st.team,...timingData(),...data});save();render()}
-async function closeSequenceWithZone(result,zEnd,extra={}){if(!st.sequence)return;closeSeq(result,zEnd,null,{...extra});}
-
+function openSeq(origin,z,meta={}){st.sequence={team:st.team,origin,zStart:z,start:stamp(),events:[],meta};maybeCountEntry22(z);save();render()}
+function addEvent(type,data={}){if(!st.sequence)return;st.sequence.events.push({type,time:stamp(),...data});if(data.z)maybeCountEntry22(data.z);save();render()}
 function countPenalty(result,team,meta={}){
-  st.penalties=st.penalties||{attackURU:0,defenseURU:0,ffURU:0};
+  st.penalties=st.penalties||{attackURU:0,defenseURU:0};
   st.penaltyReasons=st.penaltyReasons||{attackURU:{},defenseURU:{}};
   st.penaltyJerseys=st.penaltyJerseys||{};
   let bucket=null;
 
   // PENAL URU = infracción cometida por Uruguay
   if(result==='PENAL URU'){
-    if(meta.penaltyPhase==='ATA'){st.penalties.attackURU++;bucket='attackURU'}
-    else if(meta.penaltyPhase==='DEF'){st.penalties.defenseURU++;bucket='defenseURU'}
-    else if(meta.penaltyPhase==='FF'){st.penalties.ffURU=(st.penalties.ffURU||0)+1;bucket=null}
-    else if(team==='URU'){st.penalties.attackURU++;bucket='attackURU'}
+    if(team==='URU'){st.penalties.attackURU++;bucket='attackURU'}
     else if(team==='RIVAL'){st.penalties.defenseURU++;bucket='defenseURU'}
   }
 
@@ -226,11 +171,10 @@ function countPenalty(result,team,meta={}){
 }
 async function askPenaltyDetail(result){
   if(result!=='PENAL URU') return {};
-  const phase=await flow('PENAL URU · fase',['ATA','DEF','FF']);
-  const reason=await flow('PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']);
+  const reason=await flow('PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','OTRO']);
   const jersey=await flow('PENAL URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);
   const player=st.roster?.[String(jersey)]||null;
-  return {penaltyPhase:phase,penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:player};
+  return {penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:player};
 }
 function recordStandalonePenalty(committedBy,zone,meta={},previousTeam=st.team){
   st.penaltyEvents=st.penaltyEvents||[];
@@ -264,39 +208,18 @@ function latestOriginFor(team,kind){
   const x=rows.find(x=>x.result===penalResult);
   return x?.origin||null
 }
-function attackProgress(team,zStart,zEnd){const a=zoneRank(zStart),b=zoneRank(zEnd);if(a===null||b===null)return null;return team==='URU'?b-a:a-b}
-function resultBeneficiary(result){if(result==='PENAL URU'||result==='FREE KICK URU')return 'RIVAL';if(result==='PENAL RIVAL'||result==='FREE KICK RIVAL')return 'URU';return null}
-function sequenceAutoValuation(seq,result,zEnd,terminalTeam){
-  const startTeam=seq.team;const benefit=resultBeneficiary(result);const target=target22Zone(startTeam);const progress=attackProgress(startTeam,seq.zStart,zEnd);const events=seq.events||[];
-  if(result==='TRY'||result==='PENAL TRY'||result==='DROP CONVERTIDO')return terminalTeam===startTeam?'POSITIVA':'NEGATIVA';
-  if(benefit){if(benefit!==startTeam)return 'NEGATIVA';if(seq.zStart===target&&zEnd!==target)return 'NEGATIVA';return 'POSITIVA'}
-  if(['KNOCK ON','FORWARD PASS','TRABADA','HELD-UP IN-GOAL'].includes(result))return terminalTeam===startTeam?'NEGATIVA':'POSITIVA';
-  if(result==='TOUCH'||result==='DEAD BALL'||result==='DEAD IN-GOAL'||result==='22 DROPOUT'||result==='TRY-LINE DROPOUT'){
-    const touchKick=[...events].reverse().find(e=>e.type==='KICK'&&e.team===startTeam);
-    if(touchKick&&terminalTeam===startTeam){return (progress!==null&&progress>=2)||touchKick.passedY40?'POSITIVA':'NEGATIVA'}
-    return terminalTeam===startTeam?'NEGATIVA':(progress!==null&&progress>=2?'POSITIVA':'NEGATIVA');
-  }
-  if(result==='POR REVISAR'||result==='OTRO'||result==='FIN ÁRBITRO'||result==='MARK')return 'PENDIENTE';
-  if(terminalTeam===startTeam)return progress!==null&&progress>=1?'POSITIVA':'NEGATIVA';
-  const voluntaryKick=events.some(e=>e.type==='KICK'&&e.team===startTeam&&e.kickType!=='CASUAL');
-  if(voluntaryKick){const y40=events.some(e=>e.type==='KICK'&&e.team===startTeam&&e.zFrom==='Z1'&&e.passedY40);return (progress!==null&&progress>=2)||y40?'POSITIVA':'NEGATIVA'}
-  return 'NEGATIVA';
-}
-function closeSeq(result,zEnd,valuation=null,extra={}){
+function closeSeq(result,zEnd,valuation){
   if(!st.sequence)return;
-  const seq=ensureSequenceModel();
-  const pending=findPendingKickEvent();
-  if(pending){pending.zTo=pending.zTo||zEnd||null;pending.outcome=pending.outcome||result;pending.possessionAfter=pending.possessionAfter||st.team||null;pending.resolved=true}
-  st.pendingKick=null;st.lastReception=null;
-  const cur=currentPossession(seq);if(cur&&!cur.end){cur.end=stamp();cur.endEvent=result;cur.endZone=zEnd||null}
   if(result==='TRY')maybeCountEntry22(target22Zone(st.team));
-  if(zEnd===target22Zone(seq.team)||extra.entered22AndExited){if(!seq.meta.entry22Counted){seq.meta.entry22Counted=true;st.entries[seq.team]=(st.entries[seq.team]||0)+1}}
-  countPenalty(result,st.team,seq.meta||{});
-  const autoVal=valuation||sequenceAutoValuation(seq,result,zEnd,st.team);st.closed.unshift({...seq,end:stamp(),result,zEnd,valuation:autoVal,terminalTeam:st.team,possessionPattern:possessionPattern(seq),entered22AndExited:!!extra.entered22AndExited,endTiming:timingData(),...extra});
+  if(zEnd)maybeCountEntry22(zEnd);
+  const seq=st.sequence;
+  st.valuation[seq.team][valuation]++;
+  countPenalty(result,seq.team,seq.meta||{});
+  st.closed.unshift({...seq,end:stamp(),result,zEnd,valuation,terminalTeam:st.team});
   st.sequence=null;
   save();render()
 }
-async function closeWithValuation(result,z){const old=st.sequence?.team||st.team;await closeSequenceWithZone(result,z);return old}
+async function closeWithValuation(result,z){const old=st.sequence?.team||st.team;const val=await flow('Valoración de la secuencia',['POSITIVA','NEGATIVA']);closeSeq(result,z,val);return old}
 async function resolveTerminal(result,z,opts={}){
   const liveBefore=st.team;
   const scoringTeam=result==='TRY'?liveBefore:(result==='PENAL URU'?'RIVAL':result==='PENAL RIVAL'?'URU':null);
@@ -309,13 +232,21 @@ async function resolveTerminal(result,z,opts={}){
     if(st.closed?.[0])st.closed[0].events=[...(st.closed[0].events||[]),{type:'CONVERSIÓN',outcome:conv,time:stamp()}];
     if(conv==='CONVERTIDA +2') addScore(scoringTeam,2,'CONVERSIÓN',scoringOrigin);
     else save();
-    st.nextRestartTeam=other(scoringTeam);st.team=null;save();render();
   }
 
+  if(result==='PENAL URU'||result==='PENAL RIVAL'){
+    const inKickZone=scoringTeam==='URU'?['Z3','Z4'].includes(z):['Z1','Z2'].includes(z);
+    if(inKickZone){
+      const shot=await flow(`PENAL ${teamLabel(scoringTeam)} · ¿a palos?`,['CONVERTIDO +3','ERRADO','NO PATEA']);
+      if(shot!=='NO PATEA'&&st.closed?.[0])st.closed[0].events=[...(st.closed[0].events||[]),{type:'PENAL A PALOS',outcome:shot,time:stamp()}];
+      if(shot==='CONVERTIDO +3') addScore(scoringTeam,3,'PENAL A PALOS',scoringOrigin);
+      else save();
+    }
+  }
 
   if(result==='TURNOVER'){
     st.team=opts.nextTeam||other(liveBefore);
-    save();render();
+    openSeq('TURNOVER',z);
     return;
   }
   if(opts.nextTeam)st.team=opts.nextTeam;
@@ -356,21 +287,61 @@ async function resolveWithAdvantage(actualResult,z,opts={}){
 async function resolveSetPieceNotObtained(type,z){
   const rivalPen=`PENAL ${st.opponent.toUpperCase()}`;
   const rivalFk=`FREE KICK ${st.opponent.toUpperCase()}`;
-  const out=await flow(`${type} NO OBTENIDO · ¿qué pasó?`,['CONTROL RIVAL','PENAL URU',rivalPen,'FREE KICK URU',rivalFk,'OTRO']);
+  const choices=type==='SCRUM'
+    ? ['PENAL URU',rivalPen,'FREE KICK URU',rivalFk]
+    : ['TURNOVER','KNOCK ON','TIRADA TORCIDA','PENAL URU',rivalPen,'FREE KICK URU',rivalFk,'OTRO'];
+  const out=await flow(`${type} NO OBTENIDO · ¿qué pasó?`,choices);
   const normalized=out===rivalPen?'PENAL RIVAL':out===rivalFk?'FREE KICK RIVAL':out;
-  if(out==='CONTROL RIVAL'){
-    const next=other(st.team);addEvent(`${type} NO OBTENIDO`,{team:next,z});switchPossession(next,`${type} NO OBTENIDO`,z);save();render();return;
-  }
+
   if(normalized==='PENAL URU'||normalized==='PENAL RIVAL'){
-    const pd=await askPenaltyDetail(normalized);if(st.sequence)st.sequence.meta={...(st.sequence.meta||{}),...pd};
-    await closeSequenceWithZone(normalized,z);st.team=normalized==='PENAL URU'?'RIVAL':'URU';save();render();return;
+    if(type==='SCRUM'){
+      let pd={penaltyReason:'SCRUM'};
+      if(normalized==='PENAL URU'){
+        const jersey=await flow('PENAL URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);
+        pd={penaltyReason:'SCRUM',penaltyJersey:jersey,penaltyPlayer:st.roster?.[String(jersey)]||null};
+      }
+      st.sequence.meta={...(st.sequence.meta||{}),...pd};
+      const old=st.sequence?.team||st.team;
+      closeSeq(normalized,z,'NEGATIVA');
+      st.team=normalized==='PENAL URU'?'RIVAL':'URU';
+      save();render();
+      return;
+    }
+    const pd=await askPenaltyDetail(normalized);
+    st.sequence.meta={...(st.sequence.meta||{}),...pd};
+    await resolveTerminal(normalized,z);
+    return;
+  }
+  if(normalized==='TURNOVER'){
+    await resolveTerminal('TURNOVER',z);
+    return;
+  }
+  if(normalized==='KNOCK ON'){
+    const who=await flow('LINE · KNOCK ON de quién',['URU',st.opponent]);
+    const nextTeam=who==='URU'?'RIVAL':'URU';
+    if(st.sequence)st.sequence.events.push({type:'KNOCK ON',team:who==='URU'?'URU':'RIVAL',z,time:stamp()});
+    await resolveTerminal('KNOCK ON',z,{nextTeam});
+    return;
+  }
+  if(normalized==='TIRADA TORCIDA'){
+    const live=st.team;
+    if(st.sequence)st.sequence.events.push({type:'TIRADA TORCIDA',team:st.sequence.team,z,time:stamp()});
+    closeSeq('TIRADA TORCIDA',z,'NEGATIVA');
+    st.team=other(live);
+    save();render();
+    return;
   }
   if(normalized==='FREE KICK URU'||normalized==='FREE KICK RIVAL'){
-    await closeSequenceWithZone(normalized,z);st.team=normalized==='FREE KICK URU'?'RIVAL':'URU';save();render();return;
+    closeSeq(normalized,z,'NEGATIVA');
+    st.team=normalized==='FREE KICK URU'?'URU':'RIVAL';
+    save();render();
+    return;
   }
-  addEvent(`${type} NO OBTENIDO`,{z,outcome:'OTRO'});save();render();
+  const old=st.sequence?.team||st.team;
+  closeSeq('NO OBTENIDO',z,'NEGATIVA');
+  st.team=other(old);
+  save();render();
 }
-
 function renderList(obj){const e=Object.entries(obj||{});return e.length?e.map(([k,v])=>`<div>${safe(k)}: <b>${v}</b></div>`).join(''):'Sin datos'}
 function pct(won,total){return total?Math.round((won/total)*100):null}
 function pctText(won,total){const p=pct(won,total);return p===null?'—':`${p}%`}
@@ -390,7 +361,7 @@ function lineMenRates(team){
   })
 }
 function lineMenHTML(team){const rates=lineMenRates(team);return rates.length?`<div class="rate-row">${rates.map(x=>rateTile(x.label,x.won,x.total)).join('')}</div>`:'<div class="empty-stat">Sin datos</div>'}
-function missedLineHTML(team){const rows=(st.launches||[]).filter(x=>x.team===team&&x.type==='LINE'&&x.obtention==='NO OBTENIDO');if(!rows.length)return '<div class="empty-stat">Sin lines no obtenidos</div>';return `<div class="missed-list"><div class="missed-head"><span>ZONA</span><span>RESULTADO</span></div>${rows.map(x=>`<div class="missed-row"><b>${safe(x.z||'—')}</b><span>NO OBTENIDO</span></div>`).join('')}</div>`}
+function missedLineHTML(team){const rows=(st.launches||[]).filter(x=>x.team===team&&x.type==='LINE'&&x.obtention==='NO OBTENIDO');if(!rows.length)return '<div class="empty-stat">Sin lines no obtenidos</div>';return `<div class="missed-list"><div class="missed-head"><span>ZONA</span><span>HOMBRES</span><span>SALTO</span></div>${rows.map(x=>`<div class="missed-row"><b>${safe(x.z||'—')}</b><span>${safe(lineStructureLabel(x))}</span><span>${safe(x.throw||'—')}</span></div>`).join('')}</div>`}
 function utilizationRates(team,origin){
   let rows=(st.closed||[]).filter(x=>x.team===team&&x.origin===origin);
   if(origin==='LINE'||origin==='SCRUM')rows=rows.filter(x=>x.meta?.obtention==='OBTENIDO'&&x.result!=='TURNOVER');
@@ -554,6 +525,7 @@ function sequenceOutcomeLabel(x){
 function sequenceStartLabel(x){
   if(!x)return '—';
   const parts=[zoneName(x.zStart),x.origin||'—'];
+  if(x.origin==='LINE'&&x.meta?.men)parts.push(lineStructureLabel(x.meta));
   if(x.origin==='SCRUM'&&x.meta?.side){
     const side=String(x.meta.side).toUpperCase();
     parts.push(side==='IZQUIERDA'?'IZQ':side==='DERECHA'?'DER':side==='CENTRAL'||side==='CENTRO'?'CENTRAL':side);
@@ -577,7 +549,7 @@ function sequenceExplorerHTML(team,prefix){
       ${select('Result','RESULTADO',results)}
       <label class="seq-filter contextual line-filter hidden"><span>LINE · HOMBRES</span><select id="${prefix}LineMen" data-seq-filter="${prefix}"><option value="">TODOS</option>${['3','4','5','6','7'].map(v=>option(v,`${v}H`)).join('')}</select></label>
       <label class="seq-filter contextual line-filter hidden"><span>LINE · CONFIG.</span><select id="${prefix}LineConfig" data-seq-filter="${prefix}"><option value="">TODAS</option><option value="NORMAL">NORMAL</option><option value="+1">+1</option></select></label>
-      <label class="seq-filter contextual line-filter hidden"><span>LINE · SALTO</span><select id="${prefix}LineThrow" data-seq-filter="${prefix}"><option value="">TODOS</option>${['ADELANTE','MEDIO','ATRÁS'].map(v=>option(v)).join('')}</select></label>
+      <label class="seq-filter contextual line-filter hidden"><span>LINE · TIRO</span><select id="${prefix}LineThrow" data-seq-filter="${prefix}"><option value="">TODOS</option>${['ADELANTE','MEDIO','COLA'].map(v=>option(v)).join('')}</select></label>
       <label class="seq-filter contextual line-filter hidden"><span>LINE · MAUL</span><select id="${prefix}LineMaul" data-seq-filter="${prefix}"><option value="">TODOS</option>${['MAUL','NO MAUL'].map(v=>option(v)).join('')}</select></label>
       <label class="seq-filter contextual line-filter hidden"><span>LINE · OBTENCIÓN</span><select id="${prefix}LineObt" data-seq-filter="${prefix}"><option value="">TODOS</option>${['OBTENIDO','NO OBTENIDO'].map(v=>option(v)).join('')}</select></label>
       <label class="seq-filter contextual scrum-filter hidden"><span>SCRUM · LADO</span><select id="${prefix}ScrumSide" data-seq-filter="${prefix}"><option value="">TODOS</option>${['IZQUIERDA','CENTRAL','CENTRO','DERECHA'].map(v=>option(v)).join('')}</select></label>
@@ -666,6 +638,32 @@ function scrumTotalHTML(team){
   const t=scrumTotal(team);
   return `<div class="single-rate">${rateTile('TOTAL',t.won,t.total)}</div>`;
 }
+function setPieceRows(team,origin){
+  const rows=(st.closed||[]).filter(x=>x.team===team&&x.origin===origin).map(x=>({...x,isOpen:false}));
+  if(st.sequence?.team===team&&st.sequence?.origin===origin)rows.push({...st.sequence,isOpen:true,end:null});
+  return rows.sort((a,b)=>stampValue(a.start)-stampValue(b.start));
+}
+function setPieceStatusHTML(obtention,isOpen=false){
+  if(isOpen&&!obtention)return '<span class="setpiece-status pending">EN CURSO</span>';
+  const won=obtention==='OBTENIDO';
+  return `<span class="setpiece-status ${won?'won':'lost'}">${safe(obtention||'—')}</span>`;
+}
+function lineListHTML(team){
+  const rows=setPieceRows(team,'LINE');
+  if(!rows.length)return '<div class="empty-stat">Sin lines registrados</div>';
+  return `<div class="setpiece-table-wrap"><div class="setpiece-table line-detail-table">
+    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>HOMBRES</span><span>TIRO</span><span>OBTENCIÓN</span><span>MAUL</span></div>
+    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(x.zStart||'—')}</span><span>${safe(lineStructureLabel(x.meta||{}))}</span><span>${safe(lineThrowLabel(x.meta?.throw))}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(x.meta?.maul||'—')}</span></div>`).join('')}
+  </div></div>`;
+}
+function scrumListHTML(team){
+  const rows=setPieceRows(team,'SCRUM');
+  if(!rows.length)return '<div class="empty-stat">Sin scrums registrados</div>';
+  return `<div class="setpiece-table-wrap"><div class="setpiece-table scrum-detail-table">
+    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTENCIÓN</span></div>
+    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(x.zStart||'—')}</span><span>${safe(x.meta?.side||'—')}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span></div>`).join('')}
+  </div></div>`;
+}
 
 function stampValue(v){
   const m=String(v||'').match(/([12])T\s+(\d{1,2}):(\d{2})/);
@@ -678,11 +676,11 @@ function standalonePenaltyConsequence(row){
   return seq?sequenceConsequence(seq):'—';
 }
 function penaltyDetailHTML(){
-  const closedRows=(st.closed||[]).filter(x=>x.result==='PENAL URU').map(x=>({time:x.end||x.start||'—',meta:x.meta||{},consequence:sequenceConsequence(x)}));
-  const startRows=(st.penaltyEvents||[]).filter(x=>x.result==='PENAL URU').map(x=>({time:x.end||x.start||'—',meta:x.meta||{},consequence:standalonePenaltyConsequence(x)}));
+  const closedRows=(st.closed||[]).filter(x=>x.result==='PENAL URU').map(x=>({time:x.end||x.start||'—',zone:x.zEnd||x.zStart||x.meta?.penaltyZone||null,meta:x.meta||{},consequence:sequenceConsequence(x)}));
+  const startRows=(st.penaltyEvents||[]).filter(x=>x.result==='PENAL URU').map(x=>({time:x.end||x.start||'—',zone:x.zEnd||x.zStart||x.meta?.penaltyZone||null,meta:x.meta||{},consequence:standalonePenaltyConsequence(x)}));
   const rows=[...closedRows,...startRows].sort((a,b)=>stampValue(b.time)-stampValue(a.time));
   if(!rows.length)return '<div class="empty-stat">Sin penales URU registrados</div>';
-  return `<div class="penalty-detail-table"><div class="penalty-detail-head"><span>MIN</span><span>JUGADOR</span><span>MOTIVO</span><span>CONSECUENCIA</span></div>${rows.map(x=>`<div class="penalty-detail-row"><span>${safe(x.time||'—')}</span><span class="penalty-player">${safe(playerLabel(x.meta||{}))}</span><span>${safe(x.meta?.penaltyReason||'—')}</span><span class="penalty-consequence">${safe(x.consequence||'—')}</span></div>`).join('')}</div>`;
+  return `<div class="penalty-detail-table"><div class="penalty-detail-head"><span>MIN</span><span>ZONA</span><span>JUGADOR</span><span>MOTIVO</span><span>CONSECUENCIA</span></div>${rows.map(x=>`<div class="penalty-detail-row"><span>${safe(x.time||'—')}</span><span class="penalty-zone">${safe(x.zone||'—')}</span><span class="penalty-player">${safe(playerLabel(x.meta||{}))}</span><span>${safe(x.meta?.penaltyReason||'—')}</span><span class="penalty-consequence">${safe(x.consequence||'—')}</span></div>`).join('')}</div>`;
 }
 
 function allKickRecords(team='URU'){
@@ -696,21 +694,15 @@ function allKickRecords(team='URU'){
   return rows;
 }
 function kickPositive(record){
-  const e=record.event,seq=record.seq;if(e.kickType==='CASUAL')return null;
-  if(seq===st.sequence)return null; // no valorar hasta que termine la secuencia
-  const from=zoneRank(e.zFrom),to=zoneRank(e.zTo||e.z);const progress=(from!==null&&to!==null)?to-from:null;
-  const retained=e.possessionAfter?e.possessionAfter===e.team:(e.outcome==='MANTIENE POSESIÓN'||(e.team==='URU'&&(e.outcome==='RECUPERA URU'||e.outcome==='RECIBE URU'))||(e.team==='RIVAL'&&(e.outcome===`RECUPERA ${String(st.opponent||'RIVAL').toUpperCase()}`||e.outcome===`RECIBE ${String(st.opponent||'RIVAL').toUpperCase()}`)));
-  if(e.kickType==='PASS KICK'){if(e.outcome==='TOUCH')return false;return e.possessionAfter?e.possessionAfter===e.team:retained?true:false}
-  if(e.kickType==='CAJÓN 9'||e.kickType==='A DISPUTAR'){
-    if(retained)return true;
-    if(seq?.valuation==='POSITIVA')return true;
-    if(progress!==null&&progress>=2){e.qaReview=e.qaReview||'POSIBLE TERRITORIO';return true}
-    return false;
+  const e=record.event,seq=record.seq;
+  const rival=(st.opponent||'RIVAL').toUpperCase();
+  if(e.kickType==='PASS KICK')return e.outcome==='MANTIENE POSESIÓN';
+  if(e.kickType==='A DISPUTAR'){
+    return e.outcome==='RECUPERA URU'||e.outcome===`KNOCK ON ${rival}`||e.outcome===`PENAL ${rival}`;
   }
-  if(e.kickType==='TERRITORIO'||e.kickType==='TOUCH'){
-    if(e.fifty22||e.passedY40)return true;
-    if(progress!==null&&progress>=2)return true;
-    return seq?.valuation==='POSITIVA';
+  if(e.kickType==='TERRITORIO'){
+    const from=zoneRank(e.zFrom),to=zoneRank(e.zTo||e.z);
+    return from!==null&&to!==null&&to>from;
   }
   return seq?.valuation==='POSITIVA';
 }
@@ -719,13 +711,12 @@ function kickTypeSummaryHTML(){
   const records=allKickRecords('URU');
   return `<div class="kick-type-grid">${types.map(type=>{
     const rows=records.filter(r=>r.event.kickType===type);
-    const evaluated=rows.map(r=>({r,v:kickPositive(r)})).filter(x=>x.v!==null);
-    const positive=evaluated.filter(x=>x.v===true).length;
-    const pctVal=evaluated.length?Math.round(positive*100/evaluated.length):null;
+    const positive=rows.filter(kickPositive).length;
+    const pctVal=rows.length?Math.round(positive*100/rows.length):null;
     return `<div class="kick-type-card ${rows.length?'has-data':''}">
       <div class="kick-type-name">${safe(type)}</div>
-      <div class="kick-type-pct">${type==='CASUAL'?'N/E':(pctVal===null?'—':pctVal+'%')}</div>
-      <div class="kick-type-count">${type==='CASUAL'?`${rows.length} kicks · sin evaluar`:`${positive}/${evaluated.length} positivos · ${rows.length} kicks`}</div>
+      <div class="kick-type-pct">${pctVal===null?'—':pctVal+'%'}</div>
+      <div class="kick-type-count">${positive}/${rows.length} positivos · ${rows.length} kicks</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -839,36 +830,20 @@ function renderDashboard(){
   $('#breakMaps').innerHTML=breakMapHTML();
   $('#generalPenaltyList').innerHTML=penaltyDetailHTML();
 
-  // ATAQUE: utilización + secuencias completas
-  $('#attackLineUtilZones').innerHTML=zoneRateHTML(utilizationRates('URU','LINE'));
-  $('#attackScrumUtilZones').innerHTML=zoneRateHTML(utilizationRates('URU','SCRUM'));
-  $('#attackReceptionUtilZones').innerHTML=zoneRateHTML(utilizationRates('URU','RECEPCIÓN KICK'));
-  $('#attackTurnoverUtilZones').innerHTML=zoneRateHTML(utilizationRates('URU','TURNOVER'));
-  $('#attackSequenceExplorer').innerHTML=sequenceExplorerHTML('URU','attackSeq');
-  bindSequenceExplorer('attackSeq','URU');
-
-  // DEFENSA: utilización rival + secuencias completas
-  $('#defenseLineUtilZones').innerHTML=zoneRateHTML(defensiveUtilizationRates('LINE'));
-  $('#defenseScrumUtilZones').innerHTML=zoneRateHTML(defensiveUtilizationRates('SCRUM'));
-  $('#defenseReceptionUtilZones').innerHTML=zoneRateHTML(defensiveUtilizationRates('RECEPCIÓN KICK'));
-  $('#defenseTurnoverUtilZones').innerHTML=zoneRateHTML(defensiveUtilizationRates('TURNOVER'));
-  $('#defenseSequenceExplorer').innerHTML=sequenceExplorerHTML('RIVAL','defenseSeq');
-  bindSequenceExplorer('defenseSeq','RIVAL');
-
-  // KICKING GAME
-  $('#kickTypeResults').innerHTML=kickTypeSummaryHTML();
-  $('#pingPongResults').innerHTML=pingPongSummaryHTML();
-
-  // FORMACIONES FIJAS: solo obtención
-  $('#fixedAttackLineMissed').innerHTML=missedLineHTML('URU');
+  // FORMACIONES FIJAS: resumen + detalle de TODOS los lanzamientos
+  $('#fixedAttackLineMenPct').innerHTML=lineMenHTML('URU');
   $('#fixedAttackLineZone').innerHTML=zoneRateHTML(lineZoneRates('URU'));
   $('#fixedAttackScrumTotal').innerHTML=scrumTotalHTML('URU');
+  $('#fixedAttackLineList').innerHTML=lineListHTML('URU');
+  $('#fixedAttackScrumList').innerHTML=scrumListHTML('URU');
 
-  $('#fixedDefenseLineMissed').innerHTML=missedLineHTML('RIVAL');
+  $('#fixedDefenseLineMenPct').innerHTML=lineMenHTML('RIVAL');
   $('#fixedDefenseLineZone').innerHTML=zoneRateHTML(lineZoneRates('RIVAL'));
   $('#fixedDefenseScrumTotal').innerHTML=scrumTotalHTML('RIVAL');
+  $('#fixedDefenseLineList').innerHTML=lineListHTML('RIVAL');
+  $('#fixedDefenseScrumList').innerHTML=scrumListHTML('RIVAL');
 }
-function originMetaHTML(s){if(!s)return '<span>Elegí un origen para iniciar la secuencia.</span>';const items=[];if(s.origin==='LINE')items.push(['OBTENCIÓN',s.meta.obtention||'—'],['MAUL',s.meta.maul||'—'],['ZONA INICIO',s.zStart]);else if(s.origin==='SCRUM')items.push(['UBICACIÓN',s.meta.side||'—'],['OBTENCIÓN',s.meta.obtention||'—'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='RECEPCIÓN KICK')items.push(['ORIGEN','RECEPCIÓN'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TURNOVER')items.push(['ORIGEN','TURNOVER'],['ZONA',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TAP PENAL')items.push(['ORIGEN','TAP PENAL'],['ZONA',zoneName(s.zStart)],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='FREE KICK')items.push(['ORIGEN','FREE KICK'],['ZONA',s.zStart],['A FAVOR',teamLabel(s.team)]);return items.map(([l,v])=>`<div class="origin-meta-item"><div class="origin-meta-label">${safe(l)}</div><div class="origin-meta-value">${safe(v)}</div></div>`).join('')}
+function originMetaHTML(s){if(!s)return '<span>Elegí un origen para iniciar la secuencia.</span>';const items=[];if(s.origin==='LINE')items.push(['CONFIG.',lineStructureLabel(s.meta)],['DÓNDE TIRAMOS',lineThrowLabel(s.meta.throw)],['OBTENCIÓN',s.meta.obtention||'—'],['MAUL',s.meta.maul||'—'],['ZONA INICIO',s.zStart]);else if(s.origin==='SCRUM')items.push(['UBICACIÓN',s.meta.side||'—'],['OBTENCIÓN',s.meta.obtention||'—'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='RECEPCIÓN KICK')items.push(['ORIGEN','RECEPCIÓN'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TURNOVER')items.push(['ORIGEN','TURNOVER'],['ZONA',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TAP PENAL')items.push(['ORIGEN','TAP PENAL'],['ZONA',zoneName(s.zStart)],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='FREE KICK')items.push(['ORIGEN','FREE KICK'],['ZONA',s.zStart],['A FAVOR',teamLabel(s.team)]);return items.map(([l,v])=>`<div class="origin-meta-item"><div class="origin-meta-label">${safe(l)}</div><div class="origin-meta-value">${safe(v)}</div></div>`).join('')}
 function applyRoleUI(){document.body.classList.toggle('viewer-mode',currentRole==='viewer');$('#roleBadge').textContent=currentRole==='viewer'?'MODO ENTRENADOR · SOLO DASHBOARD':currentRole==='editor'?'MODO ANALISTA · EDITOR':'ADMIN';$('#accessBtn').style.display=currentRole==='admin'?'':'none';if(currentRole==='viewer'){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')}}
 function toggleClosedValuation(index){
   if(currentRole==='viewer')return;
@@ -920,14 +895,14 @@ async function editClosedSequence(index){
   }
 
   if(what==='DETALLE LINE'){
-    const field=await flow('EDITAR LINE',['OBTENCIÓN','MAUL']);
+    const field=await flow('EDITAR LINE',['CONFIGURACIÓN','TIRO','OBTENCIÓN','MAUL']);
     if(field==='CONFIGURACIÓN'){
       const men=await flow('LINE · cantidad base',['3','4','5','6','7']);
       const config=await flow('LINE · configuración',['NORMAL','+1']);
       seq.meta=seq.meta||{};
       seq.meta.men=men;seq.meta.plusOne=config==='+1';seq.meta.lineStructure=seq.meta.plusOne?`${men}+1`:men;
-    }else if(field==='SALTO'){
-      seq.meta.throw=await flow('LINE · dónde tiramos',['ADELANTE','MEDIO','ATRÁS']);
+    }else if(field==='TIRO'){
+      seq.meta.throw=await flow('LINE · tiro',['ADELANTE','MEDIO','COLA']);
     }else if(field==='OBTENCIÓN'){
       seq.meta.obtention=await flow('LINE · obtención',['OBTENIDO','NO OBTENIDO']);
     }else if(field==='MAUL'){
@@ -1008,30 +983,17 @@ async function editClosedSequence(index){
   }
   save();render();
 }
-function render(){if(!st)return;renderClock();const s=st.sequence,rival=st.opponent||'RIVAL';document.documentElement.style.setProperty('--rival-color',st.opponentColor||'#C8102E');st.score=st.score||{URU:0,RIVAL:0};$('#homeScore').textContent=st.score.URU||0;$('#awayScore').textContent=st.score.RIVAL||0;$('#awayCode').textContent=rival.toUpperCase();$('#awayCode').classList.add('rival-team');$('#currentMatchLabel').textContent=`URU vs ${rival}`;$('#possessionTeam').textContent=teamLabel(st.team);$('#possessionReason').textContent=s?`${s.origin} · ${s.zStart}`:(st.nextRestartTeam?`Reinicio: ${teamLabel(st.nextRestartTeam)}`:'Sin secuencia activa');$('.possession-banner').classList.toggle('rival-possession',st.team==='RIVAL');$('#sequenceBadge').classList.toggle('hidden',!s);$('#stateTeam').textContent=teamLabel(st.team);$('#stateOrigin').textContent=s?s.origin:'—';$('#stateZone').textContent=s?zoneName(s.zStart):'—';$('#stateStart').textContent=s?s.start:'—';$('#statePattern').textContent=s?possessionPattern(s):'—';$('#stateEvents').textContent=s&&s.events.length?s.events.map(e=>e.type).join(', '):'—';$('#originMeta').classList.toggle('empty',!s);$('#originMeta').innerHTML=originMetaHTML(s);$('#startLine').classList.toggle('selected',s?.origin==='LINE');$('#startScrum').classList.toggle('selected',s?.origin==='SCRUM');$('#startReception').classList.toggle('selected',s?.origin==='RECEPCIÓN KICK');$('#startPenalty').classList.toggle('selected',s?.origin==='TAP PENAL');$('#startFreeKick').classList.toggle('selected',s?.origin==='FREE KICK');$('#startRestart').classList.toggle('selected',['SALIDA 50','22 DROPOUT','TRY-LINE DROPOUT'].includes(s?.origin));$('#turnover').classList.toggle('selected',s?.origin==='TURNOVER');$('#break').classList.toggle('selected',!!s?.events?.some(e=>e.type==='QUIEBRE'));$('#kick').classList.toggle('selected',!!s?.events?.some(e=>e.type==='KICK'));$('#advantage').classList.toggle('selected',!!s?.advantage);
-const dir=currentAttackDirection();const dirBtn=$('#attackDirection');if(dirBtn)dirBtn.textContent=dir==='LEFT'?'URU ATACA ←':dir==='RIGHT'?'URU ATACA →':'DIRECCIÓN URU';
-const pk=findPendingKickEvent();const kr=$('#kickResolver');if(kr){kr.classList.toggle('hidden',!pk);if(pk){$('#kickResolverLabel').textContent=`KICK PENDIENTE · ${teamLabel(pk.team)} · ${pk.kickType}`;$('#kickRivalReceiveLabel').textContent=`${teamLabel(other(pk.team))} RECIBE`;$('#kickOwnRecoverLabel').textContent=`${teamLabel(pk.team)} RECUPERA`}}
-const ca=$('#counterattackQuick');if(ca){const rec=findLastReceptionEvent();ca.classList.toggle('hidden',!rec||!!rec.counterattack)}
-const f22=$('#fifty22Quick');if(f22)f22.classList.toggle('hidden',!findLastTouchKick());
-$('#undoAction').disabled=!undoStack.length;
-const latestSeq=(st.closed||[]).slice(0,2);
-$('#miniTimeline').innerHTML=latestSeq.length?latestSeq.map(x=>`<div class="mini-sequence ${x.needsReview?'needs-review':''}"><div class="mini-seq-top"><b>${safe(x.start)}–${safe(x.end)}</b><span>${safe(teamLabel(x.team))} · ${safe(x.zStart||'—')}→${safe(x.zEnd||'—')} · ${safe(x.possessionPattern||possessionPattern(x))}</span></div><div class="mini-seq-desc">${safe(originDisplay(x))}${(x.events||[]).length?' > '+(x.events||[]).map(eventDisplay).join(' > '):''} > ${safe(penaltyDisplay(x.result))}</div></div>`).join(''):'<div class="mini-empty">Sin secuencias cerradas todavía</div>';
-$('#sequenceRows').innerHTML=st.closed.length?st.closed.slice(0,30).map((x,i)=>`<tr><td>${safe(x.end||x.start)}</td><td><span class="team-pill ${x.team==='RIVAL'?'rival':''}"${x.team==='RIVAL'?` style="background:${safe(st.opponentColor)}"`:''}>${safe(teamLabel(x.team))}</span></td><td><b>${safe(originDisplay(x))}</b></td><td>${safe(zoneName(x.zStart))}</td><td>${safe(zoneName(x.zEnd))}</td><td>${safe(penaltyDisplay(x.result))}</td><td><b>${safe(x.possessionPattern||possessionPattern(x))}</b></td><td>${x.events.length?x.events.map(e=>safe(eventDisplay(e))).join(', '):'—'}</td><td><button type="button" class="small-btn ghost edit-seq-btn" data-edit-seq="${i}">EDITAR</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty-row">Sin secuencias todavía</td></tr>';
-
+function render(){if(!st)return;renderClock();const s=st.sequence,rival=st.opponent||'RIVAL';document.documentElement.style.setProperty('--rival-color',st.opponentColor||'#C8102E');st.score=st.score||{URU:0,RIVAL:0};$('#homeScore').textContent=st.score.URU||0;$('#awayScore').textContent=st.score.RIVAL||0;$('#awayCode').textContent=rival.toUpperCase();$('#awayCode').classList.add('rival-team');$('#currentMatchLabel').textContent=`URU vs ${rival}`;$('#possessionTeam').textContent=teamLabel(st.team);$('#possessionReason').textContent=s?`${s.origin} · ${s.zStart}`:'Sin secuencia activa';$('.possession-banner').classList.toggle('rival-possession',st.team==='RIVAL');$('#sequenceBadge').classList.toggle('hidden',!s);$('#stateTeam').textContent=teamLabel(st.team);$('#stateOrigin').textContent=s?s.origin:'—';$('#stateZone').textContent=s?zoneName(s.zStart):'—';$('#stateStart').textContent=s?s.start:'—';$('#stateEvents').textContent=s&&s.events.length?s.events.map(e=>e.type).join(', '):'—';$('#originMeta').classList.toggle('empty',!s);$('#originMeta').innerHTML=originMetaHTML(s);$('#startLine').classList.toggle('selected',s?.origin==='LINE');$('#startScrum').classList.toggle('selected',s?.origin==='SCRUM');$('#startReception').classList.toggle('selected',s?.origin==='RECEPCIÓN KICK');$('#startPenalty').classList.toggle('selected',s?.origin==='TAP PENAL');$('#startFreeKick').classList.toggle('selected',s?.origin==='FREE KICK');$('#turnover').classList.toggle('selected',s?.origin==='TURNOVER');$('#break').classList.toggle('selected',!!s?.events?.some(e=>e.type==='QUIEBRE'));$('#kick').classList.toggle('selected',!!s?.events?.some(e=>e.type==='KICK'));$('#advantage').classList.toggle('selected',!!s?.advantage);$('#undoAction').disabled=!undoStack.length;
+$('#sequenceRows').innerHTML=st.closed.length?st.closed.slice(0,30).map((x,i)=>`<tr><td>${safe(x.end||x.start)}</td><td><span class="team-pill ${x.team==='RIVAL'?'rival':''}"${x.team==='RIVAL'?` style="background:${safe(st.opponentColor)}"`:''}>${safe(teamLabel(x.team))}</span></td><td><b>${safe(originDisplay(x))}</b></td><td>${safe(zoneName(x.zStart))}</td><td>${safe(zoneName(x.zEnd))}</td><td>${safe(penaltyDisplay(x.result))}</td><td><button type="button" class="rating-pill valuation-toggle ${x.valuation==='POSITIVA'?'positive':'negative'}" data-valuation-index="${i}">${safe(x.valuation)}</button></td><td>${x.events.length?x.events.map(e=>safe(eventDisplay(e))).join(', '):'—'}</td><td><button type="button" class="small-btn ghost edit-seq-btn" data-edit-seq="${i}">EDITAR</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty-row">Sin secuencias todavía</td></tr>';
+$('#sequenceRows').querySelectorAll('[data-valuation-index]').forEach(b=>b.onclick=()=>toggleClosedValuation(Number(b.dataset.valuationIndex)));
 $('#sequenceRows').querySelectorAll('[data-edit-seq]').forEach(b=>b.onclick=()=>editClosedSequence(Number(b.dataset.editSeq)));
 renderDashboard();applyRoleUI()}
 function download(name,type,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function csv(){const rows=[['start','end','starts_team','start_zone','end_zone','pattern','origin','result','valuation','entered_22','start_match_seconds','start_real_seconds','end_match_seconds','end_real_seconds','possessions','events']];st.closed.slice().reverse().forEach(x=>rows.push([x.start,x.end,teamLabel(x.team),x.zStart,x.zEnd,x.possessionPattern||possessionPattern(x),x.origin,x.result,x.valuation,(x.meta?.entry22Counted||x.entered22AndExited)?'SI':'NO',x.matchSeconds??'',x.realSeconds??'',x.endTiming?.matchSeconds??'',x.endTiming?.realSeconds??'',(x.possessions||[]).map(p=>teamLabel(p.team)).join('>'),(x.events||[]).map(eventDisplay).join(' > ')]));return rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n')}
-function possessionsCsv(){
-  const rows=[['sequence_start','sequence_end','sequence_origin','possession_no','team','mode','start','end','start_event','end_event','start_zone','end_zone']];
-  st.closed.slice().reverse().forEach(seq=>{(seq.possessions||[]).forEach((p,i)=>rows.push([seq.start,seq.end,seq.origin,i+1,teamLabel(p.team),possessionMode(p.team),p.start,p.end,p.startEvent,p.endEvent,p.startZone||'',p.endZone||'']))});
-  if(st.sequence){const seq=ensureSequenceModel(st.sequence);(seq.possessions||[]).forEach((p,i)=>rows.push([seq.start,'EN CURSO',seq.origin,i+1,teamLabel(p.team),possessionMode(p.team),p.start,p.end||'EN CURSO',p.startEvent,p.endEvent||'',p.startZone||'',p.endZone||'']))}
-  return rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
-}
-function onTap(sel,fn){const node=$(sel);if(!node)return;node.addEventListener('click',async e=>{if(currentRole==='viewer')return;if(sel!=='#undoAction'&&sel!=='#voiceTagBtn')pushUndo();flashButton(e.currentTarget);try{await fn(e.currentTarget)}catch(err){if(!isFlowCancelled(err)){console.error(err);throw err}}})}
+function csv(){const rows=[['team','origin','zStart','start','end','result','zEnd','valuation','events']];st.closed.slice().reverse().forEach(x=>rows.push([teamLabel(x.team),x.origin,x.zStart,x.start,x.end,x.result,x.zEnd,x.valuation,x.events.map(e=>e.type).join('|')]));return rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n')}
+function onTap(sel,fn){$(sel).addEventListener('click',async e=>{if(currentRole==='viewer')return;if(sel!=='#undoAction'&&sel!=='#voiceTagBtn')pushUndo();flashButton(e.currentTarget);await fn(e.currentTarget)})}
 async function roleForMatch(id){const {data,error}=await sb.from('match_users').select('role').eq('match_id',id).eq('user_id',user.id).maybeSingle();if(error)console.warn(error);return data?.role||'viewer'}
 function unsubscribe(){if(channel){sb.removeChannel(channel);channel=null}}
-function subscribeMatch(id){unsubscribe();channel=sb.channel(`match:${id}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'matches',filter:`id=eq.${id}`},payload=>{const ns=payload.new?.live_state;if(!ns||!st)return;const incoming=Date.parse(ns.updatedAt||0),local=Date.parse(st.updatedAt||0);if(incoming>local||currentRole==='viewer'){st={...defaultState(payload.new.opponent_name,payload.new.opponent_color),...ns,opponent:payload.new.opponent_name,opponentColor:payload.new.opponent_color,running:false,realRunning:false};cacheMatch(id,st,{role:currentRole});render();setSync('ACTUALIZADO EN VIVO','ok')}}).subscribe()}
+function subscribeMatch(id){unsubscribe();channel=sb.channel(`match:${id}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'matches',filter:`id=eq.${id}`},payload=>{const ns=payload.new?.live_state;if(!ns||!st)return;const incoming=Date.parse(ns.updatedAt||0),local=Date.parse(st.updatedAt||0);if(incoming>local||currentRole==='viewer'){st={...defaultState(payload.new.opponent_name,payload.new.opponent_color),...ns,opponent:payload.new.opponent_name,opponentColor:payload.new.opponent_color,running:false};cacheMatch(id,st,{role:currentRole});render();setSync('ACTUALIZADO EN VIVO','ok')}}).subscribe()}
 async function openManager(){stopTimer();unsubscribe();activeId=null;localStorage.removeItem(ACTIVE);$('#matchManager').classList.remove('hidden');$('.app-shell').classList.add('manager-open');await renderMatches()}
 async function renderMatches(){const box=$('#savedMatches');box.innerHTML='<div class="no-matches">Cargando partidos…</div>';let rows=[];if(navigator.onLine){const {data,error}=await sb.from('matches').select('id,opponent_name,opponent_color,status,updated_at,live_state').order('updated_at',{ascending:false});if(!error&&data)rows=data;else console.warn(error)}if(!rows.length){const c=cacheAll();rows=Object.entries(c).map(([id,v])=>({id,opponent_name:v.meta?.opponent||v.state?.opponent||'RIVAL',opponent_color:v.meta?.opponentColor||v.state?.opponentColor||'#C8102E',updated_at:v.state?.updatedAt,live_state:v.state,_offline:true}))}box.innerHTML=rows.length?rows.map(g=>`<div class="saved-match" style="--match-color:${safe(g.opponent_color||'#C8102E')}"><div class="saved-match-color"></div><div><div class="saved-match-title">URU vs ${safe(g.opponent_name||'RIVAL')}</div><div class="saved-match-meta">${g.live_state?.closed?.length||0} secuencias · ${safe(g.live_state?.period||'1T')} ${fmtSeconds(g.live_state?.seconds||0)}${g._offline?' · OFFLINE':''}</div></div><div class="saved-match-actions"><button type="button" class="saved-match-open" data-open="${safe(g.id)}">ABRIR</button><button type="button" class="small-btn danger match-delete" data-delete="${safe(g.id)}" data-name="${safe(g.opponent_name||'RIVAL')}">ELIMINAR</button></div></div>`).join(''):'<div class="no-matches">Todavía no hay partidos disponibles.</div>';box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openGame(b.dataset.open));box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteMatch(b.dataset.delete,b.dataset.name))}
 async function deleteMatch(id,name){
@@ -1042,7 +1004,7 @@ async function deleteMatch(id,name){
   removeCachedMatch(id);
   await renderMatches();
 }
-async function openGame(id){stopTimer();activeId=id;localStorage.setItem(ACTIVE,id);let row=null;if(navigator.onLine){const {data}=await sb.from('matches').select('*').eq('id',id).maybeSingle();row=data}if(row){currentRole=await roleForMatch(id);st={...defaultState(row.opponent_name,row.opponent_color),...(row.live_state||{}),opponent:row.opponent_name,opponentColor:row.opponent_color,running:false,realRunning:false};cacheMatch(id,st,{role:currentRole})}else{const c=getCached(id);if(!c){alert('No pude abrir el partido sin conexión. Abrilo al menos una vez online.');return}currentRole=c.meta?.role||'viewer';st={...defaultState(),...c.state,running:false}}$('#matchManager').classList.add('hidden');$('.app-shell').classList.remove('manager-open');subscribeMatch(id);render();setSync(navigator.onLine?'SINCRONIZADO':'OFFLINE · guardado local',navigator.onLine?'ok':'pending')}
+async function openGame(id){stopTimer();activeId=id;localStorage.setItem(ACTIVE,id);let row=null;if(navigator.onLine){const {data}=await sb.from('matches').select('*').eq('id',id).maybeSingle();row=data}if(row){currentRole=await roleForMatch(id);st={...defaultState(row.opponent_name,row.opponent_color),...(row.live_state||{}),opponent:row.opponent_name,opponentColor:row.opponent_color,running:false};cacheMatch(id,st,{role:currentRole})}else{const c=getCached(id);if(!c){alert('No pude abrir el partido sin conexión. Abrilo al menos una vez online.');return}currentRole=c.meta?.role||'viewer';st={...defaultState(),...c.state,running:false}}$('#matchManager').classList.add('hidden');$('.app-shell').classList.remove('manager-open');subscribeMatch(id);render();setSync(navigator.onLine?'SINCRONIZADO':'OFFLINE · guardado local',navigator.onLine?'ok':'pending')}
 async function createMatch(name,color,roster={}){if(!navigator.onLine){alert('Para crear un partido nuevo necesitás conexión. Después podés taggear offline.');return}const initial=defaultState(name,color);initial.roster=roster||{};const {data,error}=await sb.from('matches').insert({created_by:user.id,opponent_name:name,opponent_color:color,live_state:initial}).select().single();if(error){alert('No pude crear el partido: '+error.message);return}await openGame(data.id)}
 async function showAccess(){if(currentRole!=='admin')return;$('#accessModal').classList.remove('hidden');await loadMembers()}
 async function loadMembers(){const box=$('#memberList');box.innerHTML='<div class="no-matches">Cargando…</div>';const {data,error}=await sb.rpc('get_match_members',{p_match_id:activeId});if(error){box.innerHTML=`<div class="no-matches">${safe(error.message)}</div>`;return}box.innerHTML=(data||[]).map(m=>`<div class="member-row"><div><div class="member-email">${safe(m.email)}</div><div class="member-role">${safe(m.role)}</div></div><div class="member-actions">${m.user_id!==user.id?`<button type="button" class="small-btn danger" data-remove="${m.user_id}">QUITAR</button>`:''}</div></div>`).join('')||'<div class="no-matches">Sin usuarios.</div>';box.querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Quitar acceso a este usuario?'))return;const {error}=await sb.rpc('remove_match_member',{p_match_id:activeId,p_user_id:b.dataset.remove});if(error)alert(error.message);else loadMembers()})}
@@ -1059,9 +1021,9 @@ function demoState(){
   const scrum=(team,z,side,obt,result,zEnd,val,meta={})=>{d.launches.push({team,type:'SCRUM',z,side,obtention:obt});add(team,'SCRUM',z,zEnd,result,val,{side,obtention:obt,entry22Counted:(team==='URU'?z==='Z4'||zEnd==='Z4':z==='Z1'||zEnd==='Z1'),...meta})};
   // URU set piece
   line('URU','Z1',5,'MEDIO','OBTENIDO','NO MAUL','TOUCH','Z2','POSITIVA');
-  line('URU','Z2',5,'ATRÁS','OBTENIDO','MAUL','PENAL RIVAL','Z3','POSITIVA');
+  line('URU','Z2',5,'COLA','OBTENIDO','MAUL','PENAL RIVAL','Z3','POSITIVA');
   line('URU','Z3',7,'MEDIO','OBTENIDO','NO MAUL','OTRO','Z4','POSITIVA',[{type:'QUIEBRE',z:'Z4',lane:'CENTRO'}]);
-  line('URU','Z4',5,'ATRÁS','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'CONVERTIDA +2'}]);
+  line('URU','Z4',5,'COLA','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'CONVERTIDA +2'}]);
   line('URU','Z3',5,'ADELANTE','NO OBTENIDO','—','NO OBTENIDO','Z3','NEGATIVA');
   line('URU','Z4',6,'MEDIO','OBTENIDO','NO MAUL','KNOCK ON','Z4','NEGATIVA');
   scrum('URU','Z2','CENTRO','OBTENIDO','OTRO','Z3','POSITIVA');
@@ -1069,7 +1031,7 @@ function demoState(){
   scrum('URU','Z4','DERECHA','NO OBTENIDO','PENAL URU','Z4','NEGATIVA',{penaltyReason:'SCRUM',penaltyJersey:'3',penaltyPlayer:d.roster['3']});
   // ENG set piece / defense sequences
   line('RIVAL','Z4',5,'MEDIO','OBTENIDO','NO MAUL','TOUCH','Z3','NEGATIVA');
-  line('RIVAL','Z2',7,'ATRÁS','OBTENIDO','MAUL','OTRO','Z1','POSITIVA',[{type:'QUIEBRE',z:'Z1',lane:'DER'}]);
+  line('RIVAL','Z2',7,'COLA','OBTENIDO','MAUL','OTRO','Z1','POSITIVA',[{type:'QUIEBRE',z:'Z1',lane:'DER'}]);
   line('RIVAL','Z1',5,'MEDIO','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'CONVERTIDA +2'}]);
   line('RIVAL','Z1',6,'ADELANTE','NO OBTENIDO','—','NO OBTENIDO','Z1','NEGATIVA');
   scrum('RIVAL','Z3','DERECHA','OBTENIDO','OTRO','Z2','POSITIVA');
@@ -1084,7 +1046,7 @@ function demoState(){
   add('URU','TURNOVER','Z2','Z3','PENAL RIVAL','POSITIVA',{},[{type:'QUIEBRE',z:'Z3',lane:'DER'}]);
   line('URU','Z3',5,'MEDIO','OBTENIDO','NO MAUL','OTRO','Z4','POSITIVA');
   add('RIVAL','TURNOVER','Z3','Z2','PENAL URU','NEGATIVA',{penaltyReason:'BREAKDOWN · DE COSTADO',penaltyJersey:'7',penaltyPlayer:d.roster['7']},[]);
-  line('RIVAL','Z1',5,'ATRÁS','OBTENIDO','MAUL','OTRO','Z1','NEGATIVA');
+  line('RIVAL','Z1',5,'COLA','OBTENIDO','MAUL','OTRO','Z1','NEGATIVA');
   add('RIVAL','TURNOVER','Z2','Z2','PENAL URU','NEGATIVA',{penaltyReason:'NO SALE TACKLEADOR',penaltyJersey:'2',penaltyPlayer:d.roster['2']},[{type:'PENAL A PALOS',outcome:'CONVERTIDO +3'}]);
   add('URU','PENAL','Z3','Z4','TOUCH','POSITIVA',{penaltyBy:'RIVAL',beneficiary:'URU'},[]);
   line('URU','Z4',5,'MEDIO','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'ERRADA'}]);
@@ -1097,8 +1059,8 @@ function demoState(){
   add('RIVAL','TURNOVER','Z2','Z1','OTRO','POSITIVA',{entry22Counted:true},[{type:'QUIEBRE',z:'Z1',lane:'IZQ'}]);
   // explicit penalties list for standalone starts
   d.penaltyEvents=[
-    {result:'PENAL URU',committedBy:'URU',previousTeam:'RIVAL',start:'2T 22:10',end:'2T 22:10',meta:{penaltyReason:'OFFSIDE',penaltyJersey:'12',penaltyPlayer:d.roster['12']}},
-    {result:'PENAL RIVAL',committedBy:'RIVAL',previousTeam:'URU',start:'2T 18:20',end:'2T 18:20',meta:{}}
+    {result:'PENAL URU',committedBy:'URU',previousTeam:'RIVAL',zStart:'Z2',zEnd:'Z2',start:'2T 22:10',end:'2T 22:10',meta:{penaltyReason:'OFFSIDE',penaltyJersey:'12',penaltyPlayer:d.roster['12']}},
+    {result:'PENAL RIVAL',committedBy:'RIVAL',previousTeam:'URU',zStart:'Z3',zEnd:'Z3',start:'2T 18:20',end:'2T 18:20',meta:{}}
   ];
   d.closed=closed.reverse();
   d.breaks={URU:4,RIVAL:4};
@@ -1131,13 +1093,7 @@ $('#newMatchForm').addEventListener('submit',async e=>{e.preventDefault();const 
 $('#createDemoMatch').onclick=createDemoMatch;
 $$('.color-swatch').forEach(b=>b.onclick=()=>{selectedColor=b.dataset.color;$('#opponentColor').value=selectedColor;$$('.color-swatch').forEach(x=>x.classList.toggle('selected',x===b))});$('#opponentColor').oninput=e=>{selectedColor=e.target.value;$$('.color-swatch').forEach(x=>x.classList.remove('selected'))};
 $('#backToMatches').onclick=openManager;$('#accessBtn').onclick=showAccess;$('#closeAccess').onclick=()=>$('#accessModal').classList.add('hidden');$('#shareForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('#shareEmail').value.trim(),role=$('#shareRole').value;$('#shareMessage').textContent='Dando acceso…';const {error}=await sb.rpc('share_match_by_email',{p_match_id:activeId,p_email:email,p_role:role});if(error){$('#shareMessage').textContent=error.message.includes('USER_NOT_FOUND')?'Ese email todavía no creó una cuenta en Los Teros Live. Pedile que se registre primero.':error.message;return}$('#shareMessage').textContent='Acceso otorgado.';$('#shareEmail').value='';loadMembers()});
-$('#startClock').onclick=async()=>{if(st?.running){pauseTimer();return}try{if(await ensureAttackDirection())startTimer()}catch(err){if(!isFlowCancelled(err))throw err}};
-$('#endClock').onclick=endPeriodTimer;
-$('#adjustClock').onclick=()=>{if(currentRole==='viewer')return;pushUndo();const raw=prompt('Tiempo actual (mm:ss)');if(!raw)return;const p=raw.split(':');st.seconds=(parseInt(p[0]||'0',10)*60)+parseInt(p[1]||'0',10);render();save()};
-$('#period1').onclick=()=>{if(currentRole==='viewer')return;pushUndo();endPeriodTimer();st.period='1T';st.seconds=0;st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realSeconds['1T']=0;st.realStartEpoch=st.realStartEpoch||{'1T':null,'2T':null};st.realStartEpoch['1T']=null;st.clockStarted=st.clockStarted||{'1T':false,'2T':false};st.clockStarted['1T']=false;render();save()};
-$('#period2').onclick=()=>{if(currentRole==='viewer')return;pushUndo();endPeriodTimer();st.period='2T';st.seconds=0;st.realSeconds=st.realSeconds||{'1T':0,'2T':0};st.realSeconds['2T']=0;st.realStartEpoch=st.realStartEpoch||{'1T':null,'2T':null};st.realStartEpoch['2T']=null;st.clockStarted=st.clockStarted||{'1T':false,'2T':false};st.clockStarted['2T']=false;st.attackDirections=st.attackDirections||{'1T':null,'2T':null};if(st.attackDirections['1T'])st.attackDirections['2T']=oppositeDirection(st.attackDirections['1T']);render();save()};
-$('#manualPossession').onclick=()=>{if(currentRole==='viewer')return;pushUndo();const next=other(st.team);if(st.sequence){addEvent('CAMBIO POSESIÓN MANUAL',{team:next});switchPossession(next,'CAMBIO POSESIÓN MANUAL')}else st.team=next;render();save()};
-onTap('#attackDirection',async()=>{st.attackDirections=st.attackDirections||{'1T':null,'2T':null};let d=st.attackDirections[st.period];if(!d){await ensureAttackDirection();return}d=oppositeDirection(d);st.attackDirections[st.period]=d;if(st.period==='1T')st.attackDirections['2T']=oppositeDirection(d);save();render()});
+$('#startClock').onclick=startTimer;$('#endClock').onclick=stopTimer;$('#adjustClock').onclick=()=>{if(currentRole==='viewer')return;pushUndo();const raw=prompt('Tiempo actual (mm:ss)');if(!raw)return;const p=raw.split(':');st.seconds=(parseInt(p[0]||'0',10)*60)+parseInt(p[1]||'0',10);render();save()};$('#period1').onclick=()=>{if(currentRole==='viewer')return;pushUndo();stopTimer();st.period='1T';st.seconds=0;render();save()};$('#period2').onclick=()=>{if(currentRole==='viewer')return;pushUndo();stopTimer();st.period='2T';st.seconds=0;render();save()};$('#manualPossession').onclick=()=>{if(currentRole==='viewer')return;pushUndo();st.team=other(st.team);render();save()};
 onTap('#startPenalty',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
   const beneficiary=await flow('TAP PENAL · quién reinicia',['URU',st.opponent]);
@@ -1154,44 +1110,29 @@ onTap('#startFreeKick',async()=>{
   openSeq('FREE KICK',z,{beneficiary:st.team});
 });
 
-onTap('#startRestart',async()=>{
-  if(!(await ensureClock())||!(await canStart()))return;
-  const type=await flow('SALIDA / REINICIO · tipo',['SALIDA 50','22 DROPOUT','TRY-LINE DROPOUT']);
-  const who=await flow(`REINICIO · quién controla${st.nextRestartTeam?` · patea ${teamLabel(st.nextRestartTeam)}`:''}`,['URU',st.opponent]);
-  st.team=who==='URU'?'URU':'RIVAL';
-  const z=await zone('REINICIO · zona de recepción');
-  openSeq(type,z,{restartType:type});
-});
-
 onTap('#startLine',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
-  const who=await flow('LINE · quién lanza',['URU',st.opponent]);
-  st.team=who==='URU'?'URU':'RIVAL';
   const z=await zone('LINE · zona de inicio');
+  const men=await flow('LINE · cantidad base de hombres',['3','4','5','6','7']);
+  const config=await flow(`LINE · ${men} · configuración`,['NORMAL','+1']);
+  const plusOne=config==='+1';
+  const lineStructure=plusOne?`${men}+1`:`${men}`;
+  const thr=await flow('LINE · tiro',['ADELANTE','MEDIO','COLA']);
   const obtention=await flow('LINE · obtención',['OBTENIDO','NO OBTENIDO']);
-  openSeq('LINE',z,{obtention});
-  st.launches.push({team:st.team,type:'LINE',z,obtention,maul:'—'});
-  if(obtention==='NO OBTENIDO'){await resolveSetPieceNotObtained('LINE',z);return}
-  const maul=await flow('LINE · ¿hay maul?',['MAUL','NO MAUL']);
-  st.sequence.meta.maul=maul;st.launches[st.launches.length-1].maul=maul;save();render();
-});
-onTap('#startScrum',async()=>{if(!(await ensureClock())||!(await canStart()))return;const z=await zone('SCRUM · zona de inicio'),side=await flow('SCRUM · ubicación',['IZQUIERDA','CENTRO','DERECHA']);openSeq('SCRUM',z,{side,obtention:'EN CURSO',resetCount:0});let obtention=null;while(!obtention){const out=await flow('SCRUM · resultado',['OBTENIDO','NO OBTENIDO','RESET']);if(out==='RESET'){st.sequence.meta.resetCount=(st.sequence.meta.resetCount||0)+1;addEvent('SCRUM RESET',{z,side,resetNo:st.sequence.meta.resetCount});continue}obtention=out}st.sequence.meta.obtention=obtention;st.launches.push({team:st.team,type:'SCRUM',z,side,obtention,resetCount:st.sequence.meta.resetCount||0});if(obtention==='NO OBTENIDO'){await resolveSetPieceNotObtained('SCRUM',z);return}save();render()});
-onTap('#startReception',async()=>{
-  if(!(await ensureClock()))return;
-  if(st.sequence&&findPendingKickEvent()){await resolvePendingKick('RIVAL_RECEIVE');return}
-  const who=await flow('RECEPCIÓN KICK · quién recibe',['URU',st.opponent]);
-  const receiver=who==='URU'?'URU':'RIVAL';
-  const z=await zone('RECEPCIÓN KICK · zona');
-  const rid=uid('reception');
-  if(st.sequence){
-    st.sequence.events.push({id:rid,type:'RECEPCIÓN KICK',team:receiver,z,counterattack:false,time:stamp(),...timingData()});
-    switchPossession(receiver,'RECEPCIÓN KICK',z);
-    st.lastReception={id:rid,sequenceStart:st.sequence.start};save();render();return;
+  const baseMeta={men,plusOne,lineStructure,throw:thr,obtention};
+  if(obtention==='NO OBTENIDO'){
+    openSeq('LINE',z,{...baseMeta,maul:'—'});
+    st.launches.push({team:st.team,type:'LINE',z,...baseMeta,maul:'—'});
+    await resolveSetPieceNotObtained('LINE',z);
+    return
   }
-  st.team=receiver;openSeq('RECEPCIÓN KICK',z,{counterattack:false,obtention:'OBTENIDA',receptionId:rid});
-  st.sequence.events.push({id:rid,type:'RECEPCIÓN KICK',team:receiver,z,counterattack:false,time:stamp(),...timingData()});
-  st.lastReception={id:rid,sequenceStart:st.sequence.start};save();render();
+  const maul=await flow('LINE · ¿hay maul?',['MAUL','NO MAUL']);
+  openSeq('LINE',z,{...baseMeta,maul});
+  st.launches.push({team:st.team,type:'LINE',z,...baseMeta,maul});
+  save();render()
 });
+onTap('#startScrum',async()=>{if(!(await ensureClock())||!(await canStart()))return;const z=await zone('SCRUM · zona de inicio'),side=await flow('SCRUM · ubicación',['IZQUIERDA','CENTRO','DERECHA']),obtention=await flow('SCRUM · obtención',['OBTENIDO','NO OBTENIDO']);if(obtention==='NO OBTENIDO'){openSeq('SCRUM',z,{side,obtention});st.launches.push({team:st.team,type:'SCRUM',z,side,obtention});await resolveSetPieceNotObtained('SCRUM',z);return}openSeq('SCRUM',z,{side,obtention});st.launches.push({team:st.team,type:'SCRUM',z,side,obtention});save();render()});
+onTap('#startReception',async()=>{if(!(await ensureClock())||!(await canStart()))return;const z=await zone('RECEPCIÓN KICK · zona');openSeq('RECEPCIÓN KICK',z)});
 function rosterChoices(){
   const rows=Object.entries(st.roster||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
   return rows.length?rows.map(([n,name])=>`#${n} · ${name}`):Array.from({length:23},(_,i)=>`#${i+1}`);
@@ -1277,7 +1218,9 @@ function parseVoiceCommand(raw){
   const team=voiceTeamFromText(t);
 
   if(voiceHas(t,'line','lineout')){
-    return {type:'LINE',team,zone:zones[0]||null,
+    const lm=voiceLineMen(t);
+    return {type:'LINE',team,zone:zones[0]||null,men:lm.men,plusOne:lm.plusOne,
+      throw:voiceHas(t,'adelante')?'ADELANTE':voiceHas(t,'medio','mitad')?'MEDIO':voiceHas(t,'cola','atras','fondo')?'COLA':null,
       obtention:voiceHas(t,'no obtenido','perdido','pierde')?'NO OBTENIDO':voiceHas(t,'obtenido','ganado','gana')?'OBTENIDO':null,
       maul:voiceHas(t,'no maul','sin maul')?'NO MAUL':voiceHas(t,'maul')?'MAUL':null};
   }
@@ -1320,7 +1263,7 @@ function parseVoiceCommand(raw){
   }
   if(voiceHas(t,'penal')){
     const committedBy=team||null;
-    const reason=voiceHas(t,'pesca')?'PESCA':voiceHas(t,'de cabeza')?'BREAKDOWN · DE CABEZA':voiceHas(t,'de costado')?'BREAKDOWN · DE COSTADO':voiceHas(t,'offside')?'OFFSIDE':voiceHas(t,'no release')?'NO RELEASE':voiceHas(t,'no sale tackleador')?'NO SALE TACKLEADOR':voiceHas(t,'maul')?'MAUL':voiceHas(t,'scrum')?'SCRUM':voiceHas(t,'line')?'LINE':voiceHas(t,'ifok')?'IFOK':null;
+    const reason=voiceHas(t,'pesca')?'PESCA':voiceHas(t,'de cabeza')?'BREAKDOWN · DE CABEZA':voiceHas(t,'de costado')?'BREAKDOWN · DE COSTADO':voiceHas(t,'offside')?'OFFSIDE':voiceHas(t,'no release')?'NO RELEASE':voiceHas(t,'no sale tackleador')?'NO SALE TACKLEADOR':voiceHas(t,'maul')?'MAUL':voiceHas(t,'scrum')?'SCRUM':voiceHas(t,'line')?'LINE':null;
     return {type:'PENAL',committedBy,zone:zones[0]||currentBallZone(),reason,jersey:voiceNumber(t,1,23)};
   }
   if(voiceHas(t,'fin secuencia','fin de secuencia')){
@@ -1336,8 +1279,12 @@ async function applyVoiceCommand(cmd){
     if(!(await canStart()))return;
     if(cmd.team)st.team=cmd.team;
     const z=cmd.zone||await zone('VOZ · LINE · zona');
+    const men=cmd.men||await flow('VOZ · LINE · hombres',['3','4','5','6','7']);
+    const plusOne=cmd.plusOne||false;
+    const thr=cmd.throw||await flow('VOZ · LINE · tiro',['ADELANTE','MEDIO','COLA']);
     const obtention=cmd.obtention||await flow('VOZ · LINE · obtención',['OBTENIDO','NO OBTENIDO']);
-    const meta={obtention,maul:cmd.maul||'—'};
+    const lineStructure=plusOne?`${men}+1`:men;
+    const meta={men,plusOne,lineStructure,throw:thr,obtention,maul:cmd.maul||'—'};
     if(obtention==='OBTENIDO'&&!cmd.maul)meta.maul=await flow('VOZ · LINE · maul',['MAUL','NO MAUL']);
     openSeq('LINE',z,meta);st.launches.push({team:st.team,type:'LINE',z,...meta});save();render();
     if(obtention==='NO OBTENIDO')await resolveSetPieceNotObtained('LINE',z);
@@ -1385,7 +1332,7 @@ async function applyVoiceCommand(cmd){
   }
   if(cmd.type==='TURNOVER'){
     const z=cmd.zone||currentBallZone()||await zone('VOZ · TURNOVER · zona');
-    if(st.sequence){const next=other(st.team);addEvent('TURNOVER',{team:next,z});switchPossession(next,'TURNOVER',z);save();render()}else{st.team=other(st.team);openSeq('TURNOVER',z)}
+    if(st.sequence)await resolveTerminal('TURNOVER',z,{nextTeam:other(st.team)});else{st.team=other(st.team);openSeq('TURNOVER',z)}
     return;
   }
   if(cmd.type==='TRY'){
@@ -1398,7 +1345,7 @@ async function applyVoiceCommand(cmd){
     const committed=cmd.committedBy||await flow('VOZ · PENAL · quién lo cometió',['URU',st.opponent]);
     const result=committed==='URU'?'PENAL URU':'PENAL RIVAL';
     if(result==='PENAL URU'){
-      const reason=cmd.reason||await flow('VOZ · PENAL URU · motivo',['PESCA','BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','IFOK','OTRO']);
+      const reason=cmd.reason||await flow('VOZ · PENAL URU · motivo',['PESCA','BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','OTRO']);
       const jersey=cmd.jersey||await flow('VOZ · PENAL URU · dorsal',Array.from({length:23},(_,i)=>String(i+1)));
       st.sequence.meta={...(st.sequence.meta||{}),penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:st.roster?.[String(jersey)]||null};
     }
@@ -1469,18 +1416,22 @@ onTap('#substitution',async()=>{
 onTap('#cardEvent',async()=>{
   if(!(await ensureClock()))return;
   st.playerEvents=st.playerEvents||[];
-  const card=await flow('TARJETA · tipo',['AMARILLA','ROJA']);const who=await flow(`${card} · equipo`,['URU',st.opponent]);const team=who==='URU'?'URU':'RIVAL';
-  let player={jersey:'',player:null};if(team==='URU')player=rosterChoiceData(await flow(`${card} · jugador`,rosterChoices()));else{const jersey=await flow(`${card} ${st.opponent} · dorsal`,['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','SIN DORSAL']);player={jersey:jersey==='SIN DORSAL'?'':jersey,player:null}}
-  st.playerEvents.unshift({type:'TARJETA',card,team,player,time:stamp(),...timingData()});
+  const card=await flow('TARJETA · tipo',['AMARILLA','ROJA']);
+  const player=rosterChoiceData(await flow(`${card} · jugador`,rosterChoices()));
+  st.playerEvents.unshift({type:'TARJETA',card,player,time:stamp(),period:st.period,seconds:st.seconds});
   save();render();
 });
 onTap('#turnover',async()=>{
-  if(!(await ensureClock())||!st.sequence)return;
+  if(!(await ensureClock()))return;
   const z=await zone('TURNOVER · zona');
-  const next=other(st.team);
-  addEvent('TURNOVER',{team:next,z});
-  switchPossession(next,'TURNOVER',z);
-  save();render();
+  if(st.sequence){
+    // Turnover ends the old possession and starts a new TURNOVER sequence.
+    // nextTeam is based on LIVE possession, not the team that opened the sequence.
+    await resolveTerminal('TURNOVER',z,{nextTeam:other(st.team)});
+  }else{
+    st.team=other(st.team);
+    openSeq('TURNOVER',z);
+  }
 });
 onTap('#break',async()=>{
   if(!(await ensureClock())||!st.sequence)return;
@@ -1502,7 +1453,8 @@ onTap('#advantage',async()=>{
     return;
   }
   const type=await flow('VENTAJA · tipo',['PENAL','KNOCK ON']);
-  const beneficiary=st.team;
+  const who=await flow('VENTAJA · a favor de quién',['URU',st.opponent]);
+  const beneficiary=who==='URU'?'URU':'RIVAL';
   const z=await zone('VENTAJA · zona');
   st.sequence.advantage={type,beneficiary,z,time:stamp()};
   st.sequence.events.push({type:'VENTAJA',advantageType:type,beneficiary,z,time:stamp()});
@@ -1514,143 +1466,109 @@ function currentBallZone(seq=st.sequence){
   for(let i=events.length-1;i>=0;i--){
     const e=events[i];
     if(e.type==='KICK'&&(e.zTo||e.z))return e.zTo||e.z;
-    if(e.z)return e.z;
+    if(e.type==='QUIEBRE'&&e.z)return e.z;
+    if(e.type==='TOUCH'&&e.z)return e.z;
   }
   return seq.zStart||null;
 }
-function uid(prefix='evt'){return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`}
-function findPendingKickEvent(){
-  if(!st?.sequence)return null;const events=st.sequence.events||[];
-  if(st.pendingKick?.id){const exact=events.find(e=>e.type==='KICK'&&e.id===st.pendingKick.id&&!e.resolved);if(exact)return exact}
-  return [...events].reverse().find(e=>e.type==='KICK'&&!e.resolved&&!e.outcome)||null;
-}
-function findLastReceptionEvent(){
-  if(!st?.sequence)return null;const events=st.sequence.events||[];
-  if(st.lastReception?.id){const exact=events.find(e=>e.id===st.lastReception.id&&e.type==='RECEPCIÓN KICK');if(exact)return exact}
-  return [...events].reverse().find(e=>e.type==='RECEPCIÓN KICK')||null;
-}
-function findLastTouchKick(){
-  const seq=st?.closed?.[0];if(!seq||seq.result!=='TOUCH')return null;
-  return [...(seq.events||[])].reverse().find(e=>e.type==='KICK'&&e.outcome==='TOUCH'&&!e.fifty22)||null;
-}
 function applyKickPossession(data){
-  if(!data)return;const rival=(st.opponent||'RIVAL').toUpperCase();let next=null;
+  if(!data)return;
+  const rival=(st.opponent||'RIVAL').toUpperCase();
+  let next=null;
+
   if(data.outcome==='RECIBE URU'||data.outcome==='RECUPERA URU') next='URU';
   else if(data.outcome===`RECIBE ${rival}`||data.outcome===`RECUPERA ${rival}`) next='RIVAL';
   else if(data.outcome==='CAMBIA POSESIÓN') next=other(data.team);
   else if(data.outcome==='MANTIENE POSESIÓN') next=data.team;
   else if(data.outcome==='TAPPING') next=data.tappingTeam||null;
-  if(next){st.team=next;data.possessionAfter=next}
-}
-async function resolvePendingKick(kind){
-  const kick=findPendingKickEvent();if(!kick||!st.sequence)return;
-  if(kind==='RIVAL_RECEIVE'){
-    const receiver=other(kick.team);const z=await zone(`KICK ${kick.kickType} · zona de recepción ${teamLabel(receiver)}`);
-    kick.zTo=z;kick.outcome=`RECIBE ${teamLabel(receiver).toUpperCase()}`;kick.possessionAfter=receiver;kick.resolved=true;
-    const rid=uid('reception');st.sequence.events.push({id:rid,type:'RECEPCIÓN KICK',team:receiver,z,counterattack:false,fromKickId:kick.id,time:stamp(),...timingData()});
-    switchPossession(receiver,'RECEPCIÓN KICK',z);st.pendingKick=null;st.lastReception={id:rid,sequenceStart:st.sequence.start};save();render();return;
-  }
-  if(kind==='OWN_RECOVER'){
-    const receiver=kick.team;const z=await zone(`KICK ${kick.kickType} · zona donde recupera ${teamLabel(receiver)}`);
-    kick.zTo=z;kick.outcome=`RECUPERA ${teamLabel(receiver).toUpperCase()}`;kick.possessionAfter=receiver;kick.resolved=true;
-    st.sequence.events.push({id:uid('recover'),type:'RECUPERA KICK',team:receiver,z,fromKickId:kick.id,time:stamp(),...timingData()});
-    st.team=receiver;st.pendingKick=null;st.lastReception=null;save();render();return;
-  }
-  if(kind==='TOUCH'){
-    const z=await zone('KICK A TOUCH · zona donde salió');
-    kick.zTo=z;kick.outcome='TOUCH';kick.possessionAfter=null;kick.resolved=true;
-    st.sequence.events.push({type:'TOUCH',mode:'KICK DIRECTO AL TOUCH',team:kick.team,z,time:stamp(),...timingData()});st.pendingKick=null;st.lastReception=null;
-    closeSeq('TOUCH',z);return;
-  }
-  if(kind==='DEAD_IN_GOAL'){
-    const z='INGOAL';
-    kick.zTo=z;kick.outcome='DEAD IN-GOAL';kick.possessionAfter=null;kick.resolved=true;st.pendingKick=null;st.lastReception=null;
-    st.sequence.events.push({type:'DEAD IN-GOAL',mode:'KICK',team:kick.team,z,time:stamp(),...timingData()});
-    closeSeq('DEAD IN-GOAL',z);return;
+
+  if(next){
+    st.team=next;
+    data.possessionAfter=next;
   }
 }
 onTap('#kick',async()=>{
   if(!(await ensureClock())||!st.sequence)return;
-  if(findPendingKickEvent()){alert('Hay un kick pendiente. Resolvelo antes de registrar otro kick.');return}
+  pushUndo();
+  const team=st.team;
+  const rivalName=st.opponent.toUpperCase();
   const kickType=await flow('KICK · tipo',['CAJÓN 9','A DISPUTAR','TERRITORIO','TOUCH','PASS KICK','CASUAL']);
-  const event={id:uid('kick'),type:'KICK',time:stamp(),team:st.team,kickType,zFrom:currentBallZone()||st.sequence?.zStart||null,resolved:false,...timingData()};
-  st.sequence.events.push(event);st.pendingKick={id:event.id,team:event.team,kickType:event.kickType};st.lastReception=null;save();render();
-  if(kickType==='TOUCH')await resolvePendingKick('TOUCH');
-});
-onTap('#kickRivalReceive',async()=>{await resolvePendingKick('RIVAL_RECEIVE')});
-onTap('#kickOwnRecover',async()=>{await resolvePendingKick('OWN_RECOVER')});
-onTap('#kickTouchResolve',async()=>{await resolvePendingKick('TOUCH')});
-onTap('#kickDeadResolve',async()=>{await resolvePendingKick('DEAD_IN_GOAL')});
-onTap('#counterattackQuick',async()=>{const rec=findLastReceptionEvent();if(!rec)return;rec.counterattack=true;if(st.sequence?.origin==='RECEPCIÓN KICK'&&st.sequence.meta)st.sequence.meta.counterattack=true;st.lastReception=null;save();render()});
-onTap('#fifty22Quick',async()=>{const k=findLastTouchKick();if(!k)return;k.fifty22=true;save();render()});
+  const zFrom=currentBallZone();
+  const z=await zone('KICK · zona destino / recepción');
+  const data={team,kickType,z,zFrom,zTo:z};
 
-function attachFollowupPenaltyToLastSequence(result,z,meta={}){
-  const last=st.closed?.[0];
-  if(!last||!['PENAL URU','PENAL RIVAL'].includes(last.result))return false;
-  last.events=last.events||[];
-  last.events.push({type:'PENAL ADICIONAL',result,z,meta,time:stamp(),...timingData()});
-  last.result=result;last.zEnd=z;last.meta={...(last.meta||{}),finalPenaltyMeta:meta};
-  last.terminalTeam=result==='PENAL URU'?'RIVAL':'URU';
-  last.valuation=sequenceAutoValuation(last,result,z,last.terminalTeam);
-  return true;
-}
-onTap('#tryEvent',async()=>{
-  if(!(await ensureClock())||!st.sequence)return;const scoring=st.team;const origin=st.sequence.origin;const kind=await flow('TRY · tipo',['TRY','PENAL TRY']);
-  if(kind==='PENAL TRY'){closeSeq('PENAL TRY',target22Zone(scoring));addScore(scoring,7,'PENAL TRY',origin)}
-  else{closeSeq('TRY',target22Zone(scoring));addScore(scoring,5,'TRY',origin);const conv=await flow(`CONVERSIÓN ${teamLabel(scoring)} · resultado`,['CONVERTIDA +2','ERRADA']);if(st.closed?.[0])st.closed[0].events=[...(st.closed[0].events||[]),{type:'CONVERSIÓN',outcome:conv,time:stamp(),...timingData()}];if(conv==='CONVERTIDA +2')addScore(scoring,2,'CONVERSIÓN',origin);else save()}
-  st.nextRestartTeam=other(scoring);st.team=null;save();render();
-});
-onTap('#restartEvent',async()=>{
-  if(!(await ensureClock()))return;
-  if(st.sequence){const a=await flow('Hay una secuencia abierta',['VOLVER','CERRAR Y REINICIAR']);if(a==='VOLVER')return;const zf=await zone('Zona final');await closeSequenceWithZone('REINICIO',zf)}
-  const type=await flow('REINICIO · tipo',['SALIDA 50','22 DROPOUT','TRY-LINE DROPOUT']);
-  const who=await flow('REINICIO · quién controla',['URU',st.opponent]);st.team=who==='URU'?'URU':'RIVAL';
-  const z=await zone('REINICIO · zona de recepción');openSeq(type,z,{restartType:type});
-});
-onTap('#reviewFlag',async()=>{
-  if(!(await ensureClock()))return;st.reviewFlags=st.reviewFlags||[];st.reviewFlags.unshift({time:stamp(),...timingData(),sequenceStart:st.sequence?.start||null,team:st.team,note:'REVISAR'});save();render();
+  if(kickType==='A DISPUTAR'){
+    data.outcome=await flow('KICK A DISPUTAR · resultado',['RECUPERA URU',`RECUPERA ${rivalName}`,'TAPPING','KNOCK ON','PENAL URU',`PENAL ${rivalName}`]);
+  }else if(kickType==='TOUCH'){
+    data.outcome=await flow('KICK TOUCH · resultado',['TOUCH','KNOCK ON']);
+    if(data.outcome==='TOUCH')data.touchMode=await flow('KICK AL TOUCH · resultado',['DIRECTO AL TOUCH','JUGADOR SALE AL TOUCH']);
+  }else if(kickType==='PASS KICK'){
+    data.outcome=await flow('PASS KICK · resultado',['MANTIENE POSESIÓN','CAMBIA POSESIÓN','TAPPING','KNOCK ON','TOUCH']);
+  }else{
+    data.outcome=await flow(`${kickType} · resultado`,['RECIBE URU',`RECIBE ${rivalName}`,'TAPPING','KNOCK ON','TOUCH']);
+  }
+
+  if(data.outcome==='TAPPING'){
+    const tapping=await flow('TAPPING · quién mantiene la posesión',['URU',st.opponent]);
+    data.tappingTeam=tapping==='URU'?'URU':'RIVAL';
+  }
+  if(data.outcome==='KNOCK ON'){
+    const ko=await flow('KNOCK ON · de quién',['URU',st.opponent]);
+    data.knockOnTeam=ko==='URU'?'URU':'RIVAL';
+    data.outcome=data.knockOnTeam==='URU'?'KNOCK ON URU':`KNOCK ON ${rivalName}`;
+  }
+
+  // Keep the kick in the sequence before any automatic terminal resolution.
+  st.sequence.events.push({type:'KICK',time:stamp(),...data});
+  if(data.z)maybeCountEntry22(data.z);
+
+  if(data.outcome==='TOUCH'){
+    save();render();
+    await resolveWithAdvantage('KICK AL TOUCH',z);
+    return;
+  }
+  if(data.outcome==='KNOCK ON URU'||data.outcome===`KNOCK ON ${rivalName}`){
+    const nextTeam=data.outcome==='KNOCK ON URU'?'RIVAL':'URU';
+    save();render();
+    await resolveWithAdvantage('KNOCK ON',z,{nextTeam});
+    return;
+  }
+  if(data.outcome==='PENAL URU'||data.outcome===`PENAL ${rivalName}`){
+    const result=data.outcome==='PENAL URU'?'PENAL URU':'PENAL RIVAL';
+    save();render();
+    await resolveWithAdvantage(result,z);
+    return;
+  }
+
+  applyKickPossession(data);
+  // Update the already-stored kick event with final possession/tapping detail.
+  const last=st.sequence.events[st.sequence.events.length-1];
+  if(last?.type==='KICK')Object.assign(last,data);
+  save();render();
 });
 onTap('#undoAction',async()=>{undoLastAction()});
 onTap('#finish',async()=>{
-  if(!(await ensureClock()))return;
-  const rivalPenalty=`PENAL ${st.opponent.toUpperCase()}`;
-  // Sin secuencia abierta, PÉRDIDA/FIN sirve para registrar un segundo penal/reversión
-  // antes del reinicio, sin necesitar botones de penal redundantes en el home.
-  if(!st.sequence){
-    const last=st.closed?.[0];
-    if(!last||!['PENAL URU','PENAL RIVAL'].includes(last.result)){alert('No hay una secuencia abierta para cerrar.');return}
-    const follow=await flow('PENAL ADICIONAL / REVERTIDO',['PENAL URU',rivalPenalty,'VOLVER']);
-    if(follow==='VOLVER')return;
+  if(!(await ensureClock())||!st.sequence)return;
+  const rivalPen=`PENAL ${st.opponent.toUpperCase()}`;
+  const out=await flow('FIN SECUENCIA · resultado',['TRY','PENAL URU',rivalPen,'TURNOVER','KNOCK ON','FORWARD PASS','TOUCH','KICK ENTREGADO','OTRO']);
+  const normalized=out===rivalPen?'PENAL RIVAL':out;
+  if(normalized==='TRY'){await resolveTerminal('TRY','INGOAL');return}
+  if(normalized==='TOUCH'&&!st.sequence.events?.some(e=>e.type==='KICK'&&e.outcome==='TOUCH')){
     pushUndo();
-    const normalizedFollow=follow===rivalPenalty?'PENAL RIVAL':'PENAL URU';
-    const pd=normalizedFollow==='PENAL URU'?await askPenaltyDetail('PENAL URU'):{};
-    const z=await zone(`${follow} · zona final`);
-    recordStandalonePenalty(normalizedFollow==='PENAL URU'?'URU':'RIVAL',z,pd,st.team||'URU');
-    attachFollowupPenaltyToLastSequence(normalizedFollow,z,pd);
-    st.team=normalizedFollow==='PENAL URU'?'RIVAL':'URU';st.nextRestartTeam=null;save();render();return;
+    const mode=await flow('TOUCH · cómo salió',['JUGADOR SALE AL TOUCH','KICK DIRECTO AL TOUCH','OTRO']);
+    addEvent('TOUCH',{mode});
   }
-  const out=await flow('PÉRDIDA / FIN · resultado',['PENAL URU',rivalPenalty,'FREE KICK URU',`FREE KICK ${st.opponent.toUpperCase()}`,'KNOCK ON','FORWARD PASS','TOUCH','DEAD BALL','DEAD IN-GOAL','HELD-UP IN-GOAL','TRABADA','MARK','22 DROPOUT','TRY-LINE DROPOUT','DROP CONVERTIDO','FIN ÁRBITRO','OTRO / REVISAR']);
-  const normalized=out===rivalPenalty?'PENAL RIVAL':out===`FREE KICK ${st.opponent.toUpperCase()}`?'FREE KICK RIVAL':out==='OTRO / REVISAR'?'POR REVISAR':out;
-  const pd=normalized==='PENAL URU'?await askPenaltyDetail('PENAL URU'):{};
-  const z=['HELD-UP IN-GOAL','DEAD IN-GOAL','DROP CONVERTIDO'].includes(normalized)?target22Zone(st.team):await zone(`${out} · zona final`);
-  if(normalized==='PENAL URU')st.sequence.meta={...(st.sequence.meta||{}),...pd};
-  if(normalized==='TOUCH'){const mode=await flow('TOUCH · cómo salió',['JUGADOR SALE AL TOUCH','KICK DIRECTO AL TOUCH','OTRO']);addEvent('TOUCH',{mode,z});const k=[...(st.sequence.events||[])].reverse().find(e=>e.type==='KICK'&&!e.zTo);if(k){k.zTo=z;k.outcome='TOUCH';k.possessionAfter=null;k.resolved=true;st.pendingKick=null}}
-  if(normalized==='DROP CONVERTIDO')addScore(st.team,3,'DROP',st.sequence?.origin||null);
-  await closeSequenceWithZone(normalized,z,{needsReview:normalized==='POR REVISAR',penalty:pd});
-  if(['KNOCK ON','FORWARD PASS','TRABADA','MARK'].includes(normalized))st.team=other(st.team);
-  if(normalized==='PENAL URU'||normalized==='FREE KICK URU')st.team='RIVAL';
-  if(normalized==='PENAL RIVAL'||normalized==='FREE KICK RIVAL')st.team='URU';
-  if(normalized==='PENAL URU'||normalized==='PENAL RIVAL')st.nextRestartTeam=null;
-  save();render();
+  const z=await zone(`${out} · zona final`);
+  if(normalized==='TURNOVER'){
+    await resolveTerminal('TURNOVER',z,{nextTeam:other(st.team)});
+    return;
+  }
+  await resolveWithAdvantage(normalized,z);
 });
-onTap('#entered22Quick',async()=>{const seq=st.closed?.[0];if(!seq)return;pushUndo();if(seq.meta?.entry22Counted||seq.entered22AndExited)return;seq.meta=seq.meta||{};seq.meta.entry22Counted=true;seq.entered22AndExited=true;st.entries[seq.team]=(st.entries[seq.team]||0)+1;save();render()});
-onTap('#passedY40Quick',async()=>{pushUndo();const sequences=[];if(st.sequence)sequences.push(st.sequence);sequences.push(...(st.closed||[]));let kick=null;for(const seq of sequences){kick=[...(seq.events||[])].reverse().find(e=>e.type==='KICK'&&e.team==='URU'&&e.zFrom==='Z1'&&!e.passedY40);if(kick)break}if(!kick){alert('No encontré un kick URU reciente desde Z1 para marcar.');return}kick.passedY40=true;save();render()});
-onTap('#penaltyShot',async()=>{if(!(await ensureClock()))return;const last=st.closed?.[0];if(!last||!['PENAL URU','PENAL RIVAL'].includes(last.result)){alert('No hay un penal recién cerrado para asociar a palos.');return}pushUndo();const beneficiary=last.result==='PENAL URU'?'RIVAL':'URU';const outcome=await flow(`PENAL A PALOS ${teamLabel(beneficiary)} · resultado`,['CONVERTIDO +3','ERRADO']);last.events=last.events||[];last.events.push({type:'PENAL A PALOS',outcome,time:stamp(),...timingData()});if(outcome==='CONVERTIDO +3')addScore(beneficiary,3,'PENAL A PALOS',last.origin);else save();render();});
-onTap('#dropGoal',async()=>{if(!(await ensureClock())||!st.sequence)return;const outcome=await flow('DROP · resultado',['CONVERTIDO +3','FALLADO · SIGUE VIVA','FALLADO · DEAD IN-GOAL']);addEvent('DROP',{outcome});if(outcome==='CONVERTIDO +3'){addScore(st.team,3,'DROP',st.sequence.origin);await closeSequenceWithZone('DROP CONVERTIDO',target22Zone(st.team))}else if(outcome==='FALLADO · DEAD IN-GOAL'){await closeSequenceWithZone('DEAD IN-GOAL','INGOAL')}});
-$('#exportJson').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.json`,'application/json',JSON.stringify(st,null,2));$('#exportCsv').onclick=()=>download(`URU-${st.opponent}-SECUENCIAS-${Date.now()}.csv`,'text/csv;charset=utf-8',csv());$('#exportPossessionsCsv').onclick=()=>download(`URU-${st.opponent}-POSESIONES-${Date.now()}.csv`,'text/csv;charset=utf-8',possessionsCsv());$('#resetMatch').onclick=()=>{if(currentRole==='viewer'||!confirm('¿Reiniciar este partido? Se borrarán sus eventos.'))return;stopTimer();const opp=st.opponent,color=st.opponentColor,created=st.createdAt;st={...defaultState(opp,color),createdAt:created};save();render()};
-$$('.tab').forEach(b=>b.onclick=()=>{if(currentRole==='viewer'&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','attack','defense','kicking','fixed'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
+$('#exportJson').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.json`,'application/json',JSON.stringify(st,null,2));$('#exportCsv').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.csv`,'text/csv;charset=utf-8',csv());$('#resetMatch').onclick=()=>{if(currentRole==='viewer'||!confirm('¿Reiniciar este partido? Se borrarán sus eventos.'))return;stopTimer();const opp=st.opponent,color=st.opponentColor,created=st.createdAt;st={...defaultState(opp,color),createdAt:created};save();render()};
+$$('.tab').forEach(b=>b.onclick=()=>{if(currentRole==='viewer'&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','fixed'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
-if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 boot();
 })();
