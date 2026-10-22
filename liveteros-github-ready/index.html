@@ -77,7 +77,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.3 · LIVE LITE</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.1 · ACCESS + LINE</div>
         </div>
       </div>
 
@@ -113,25 +113,7 @@
       </section>
 
       <section id="tagView">
-        <div class="tag-mode-bar">
-          <div><div class="panel-kicker">MODO DE ETIQUETADO</div><div class="tag-mode-note">FULL para análisis completo · LITE para alimentar sólo los datos del dashboard en vivo.</div></div>
-          <div class="tag-mode-switch" role="group" aria-label="Modo de etiquetado"><button type="button" id="modeFull" class="tag-mode-btn active">FULL</button><button type="button" id="modeLite" class="tag-mode-btn">LITE</button></div>
-        </div>
-
-        <section id="liteTagging" class="lite-only">
-          <div class="lite-head"><div><div class="panel-title">LIVE LITE</div><div class="muted">Sólo captura los KPIs que llegan al dashboard en vivo.</div></div><button type="button" id="liteUndo" class="small-btn ghost">↶ DESHACER</button></div>
-          <div class="lite-team-grid">
-            <section class="lite-team-card uru"><div class="lite-team-title">URU</div><div class="lite-kpi-grid">
-              <button type="button" class="lite-action primary" data-lite="entry" data-team="URU">+ ENTRADA 22</button><button type="button" class="lite-action" data-lite="break" data-team="URU">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="URU">PENAL URU</button><button type="button" class="lite-action" data-lite="line" data-team="URU">LINE URU</button><button type="button" class="lite-action" data-lite="scrum" data-team="URU">SCRUM URU</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="URU">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="URU">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="URU">DROP +3</button>
-            </div><button type="button" id="liteExitURU" class="lite-entry-close" data-lite="exit22" data-team="URU">SALIDA 22 / SIN RESULTADO</button><div id="liteEntryURU" class="lite-entry-state"></div></section>
-            <section class="lite-team-card rival"><div id="liteRivalTitle" class="lite-team-title">RIVAL</div><div class="lite-kpi-grid">
-              <button type="button" class="lite-action primary" data-lite="entry" data-team="RIVAL">+ ENTRADA 22</button><button type="button" class="lite-action" data-lite="break" data-team="RIVAL">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="RIVAL">PENAL RIVAL</button><button type="button" class="lite-action" data-lite="line" data-team="RIVAL">LINE RIVAL</button><button type="button" class="lite-action" data-lite="scrum" data-team="RIVAL">SCRUM RIVAL</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="RIVAL">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="RIVAL">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="RIVAL">DROP +3</button>
-            </div><button type="button" id="liteExitRIVAL" class="lite-entry-close" data-lite="exit22" data-team="RIVAL">SALIDA 22 / SIN RESULTADO</button><div id="liteEntryRIVAL" class="lite-entry-state"></div></section>
-          </div>
-          <section class="lite-log-card"><div class="panel-kicker">ÚLTIMAS ACCIONES LITE</div><div id="liteLog" class="lite-log"></div></section>
-        </section>
-
-        <div class="possession-banner full-only">
+        <div class="possession-banner">
           <div class="possession-logo-wrap">
             <img src="assets/teros-shield.png" alt="" class="possession-logo" />
           </div>
@@ -147,7 +129,7 @@
           <button type="button" id="manualPossession" class="possession-change">⇄ CAMBIAR POSESIÓN</button>
         </div>
 
-        <div class="tag-layout full-only">
+        <div class="tag-layout">
           <section class="tag-panel start-panel">
             <div class="panel-title">INICIO DE SECUENCIA</div>
             <div class="tag-grid start-grid">
@@ -192,7 +174,7 @@
           </aside>
         </div>
 
-        <section id="voicePanel" class="voice-panel hidden full-only" aria-live="polite">
+        <section id="voicePanel" class="voice-panel hidden" aria-live="polite">
           <div class="voice-head">
             <div>
               <div class="panel-title">ETIQUETADO POR VOZ</div>
@@ -216,7 +198,7 @@
 
         <div id="flow" class="flow hidden" aria-live="polite"></div>
 
-        <section class="closed-card full-only">
+        <section class="closed-card">
           <div class="card-head">
             <div class="panel-title">SECUENCIAS CERRADAS</div>
             <div class="card-actions">
