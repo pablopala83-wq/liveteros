@@ -2,12 +2,12 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const SUPABASE_URL='https://lrkywcgsxcbvzusgmlrh.supabase.co';
 const SUPABASE_KEY='sb_publishable_A2ZTec3Na7ZzpkdVY2MOgQ_7LDN8lti';
-const CACHE='teros-live-v4-cache', ACTIVE='teros-live-v4-active';
+const CACHE='teros-live-v4-cache', ACTIVE='teros-live-v4-active', TAG_MODE='teros-live-tag-mode';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const other=t=>t==='URU'?'RIVAL':'URU';
 const safe=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-const defaultState=(opponent='RIVAL',color='#C8102E')=>({opponent,opponentColor:color,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),team:'URU',sequence:null,closed:[],launches:[],entries:{URU:0,RIVAL:0},breaks:{URU:0,RIVAL:0},valuation:{URU:{POSITIVA:0,NEGATIVA:0},RIVAL:{POSITIVA:0,NEGATIVA:0}},penalties:{attackURU:0,defenseURU:0},penaltyReasons:{attackURU:{},defenseURU:{}},penaltyJerseys:{},penaltyEvents:[],roster:{},pointsOrigin:{URU:{},RIVAL:{}},score:{URU:0,RIVAL:0},scoreEvents:[],playerEvents:[],period:'1T',seconds:0,running:false});
-let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', currentRole='viewer', canTagCurrent=false, assignedTagger=null, channel=null, publicPoll=null, publicViewToken=null, currentViewerLink='', syncTimer=null, saving=false, dirty=false, undoStack=[];
+const defaultState=(opponent='RIVAL',color='#C8102E')=>({opponent,opponentColor:color,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),team:'URU',sequence:null,closed:[],launches:[],entries:{URU:0,RIVAL:0},breaks:{URU:0,RIVAL:0},valuation:{URU:{POSITIVA:0,NEGATIVA:0},RIVAL:{POSITIVA:0,NEGATIVA:0}},penalties:{attackURU:0,defenseURU:0},penaltyReasons:{attackURU:{},defenseURU:{}},penaltyJerseys:{},penaltyEvents:[],roster:{},pointsOrigin:{URU:{},RIVAL:{}},score:{URU:0,RIVAL:0},scoreEvents:[],playerEvents:[],liteEntries:[],liteBreaks:[],liteLog:[],period:'1T',seconds:0,running:false});
+let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', tagMode=localStorage.getItem(TAG_MODE)||'FULL', currentRole='viewer', canTagCurrent=false, assignedTagger=null, channel=null, publicPoll=null, publicViewToken=null, currentViewerLink='', syncTimer=null, saving=false, dirty=false, undoStack=[];
 function cacheAll(){try{return JSON.parse(localStorage.getItem(CACHE)||'{}')}catch{return {}}}
 function cacheMatch(id,state,meta={}){const c=cacheAll();c[id]={state:{...state,running:false},meta};localStorage.setItem(CACHE,JSON.stringify(c))}
 function getCached(id){return cacheAll()[id]||null}
@@ -29,6 +29,22 @@ function playerLabel(meta={}){
   if(name)return name;
   if(jersey)return `#${jersey}`;
   return '—';
+}
+function eventPlayerLabel(meta={}){
+  const jersey=String(meta.jersey||meta.breakJersey||meta.penaltyJersey||'');
+  const name=meta.player||meta.breakPlayer||meta.penaltyPlayer||(meta.team==='URU'?st?.roster?.[jersey]:null)||'';
+  if(name)return name;
+  if(jersey)return `#${jersey}`;
+  return '—';
+}
+function teamPlayerChoices(team){
+  if(team==='URU')return rosterChoices();
+  return Array.from({length:23},(_,i)=>`#${i+1}`);
+}
+function teamPlayerChoiceData(team,label){
+  const m=String(label||'').match(/^#(\d+)/);
+  const jersey=m?m[1]:'';
+  return {jersey,player:team==='URU'?(st.roster?.[jersey]||null):null,team};
 }
 function lineStructureLabel(obj={}){
   if(obj.lineStructure)return obj.lineStructure;
@@ -171,7 +187,7 @@ function countPenalty(result,team,meta={}){
 }
 async function askPenaltyDetail(result){
   if(result!=='PENAL URU') return {};
-  const reason=await flow('PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','OTRO']);
+  const reason=await flow('PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']);
   const jersey=await flow('PENAL URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);
   const player=st.roster?.[String(jersey)]||null;
   return {penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:player};
@@ -403,9 +419,12 @@ function entryStats(team){
     const attackingTeam=x.result==='TRY'?(x.terminalTeam||x.team):x.team;
     return attackingTeam===team&&sequenceReached22({...x,team:attackingTeam})
   });
-  const total=rows.length;
-  const positive=rows.filter(x=>entryEffective({...x,team:(x.result==='TRY'?(x.terminalTeam||x.team):x.team)})).length;
-  return {total,resolved:total,positive,pct:pct(positive,total)};
+  const lite=(st.liteEntries||[]).filter(x=>x.team===team);
+  const total=rows.length+lite.length;
+  const liteResolved=lite.filter(x=>x.status!=='PENDING');
+  const resolved=rows.length+liteResolved.length;
+  const positive=rows.filter(x=>entryEffective({...x,team:(x.result==='TRY'?(x.terminalTeam||x.team):x.team)})).length+liteResolved.filter(x=>x.status==='POSITIVA').length;
+  return {total,resolved,positive,pending:total-resolved,pct:pct(positive,resolved)};
 }
 function penaltyMatrix(){
   const m={URU:{attack:0,defense:0},RIVAL:{attack:0,defense:0}};
@@ -426,6 +445,7 @@ function breakEvents(team){
   const out=[];
   (st.closed||[]).forEach(seq=>(seq.events||[]).filter(e=>e.type==='QUIEBRE').forEach(e=>{if((e.team||seq.team)===team)out.push(e)}));
   if(st.sequence)(st.sequence.events||[]).filter(e=>e.type==='QUIEBRE').forEach(e=>{if((e.team||st.sequence.team)===team)out.push(e)});
+  (st.liteBreaks||[]).filter(e=>e.team===team).forEach(e=>out.push(e));
   return out
 }
 function breakCount(team,key,value){return breakEvents(team).filter(e=>e[key]===value).length}
@@ -450,7 +470,18 @@ function breakTableHTML(){
     </div>
   </section>`;
 }
-function breakMapHTML(){return `<div class="break-tables-layout break-zone-only">${breakTableHTML()}</div>`;}
+function breakDetailHTML(){
+  const rows=[...breakEvents('URU'),...breakEvents('RIVAL')].sort((a,b)=>stampValue(b.time||b.start)-stampValue(a.time||a.start));
+  if(!rows.length)return `<section class="break-table-card break-detail-card"><div class="break-table-title">DETALLE DE QUIEBRES</div><div class="empty-stat">Sin quiebres registrados</div></section>`;
+  return `<section class="break-table-card break-detail-card">
+    <div class="break-table-title">DETALLE DE QUIEBRES</div>
+    <div class="break-table-scroll"><table class="break-data-table break-player-table">
+      <thead><tr><th>MIN</th><th>EQUIPO</th><th>ZONA</th><th>JUGADOR</th></tr></thead>
+      <tbody>${rows.map(e=>`<tr><td>${safe(e.time||e.start||'—')}</td><td>${safe(teamLabel(e.team||'URU'))}</td><td>${safe(e.z||'—')}</td><td class="break-player">${safe(eventPlayerLabel(e))}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </section>`;
+}
+function breakMapHTML(){return `<div class="break-tables-layout">${breakTableHTML()}${breakDetailHTML()}</div>`;}
 function penaltyDisplay(result){
   if(result==='PENAL URU') return 'PENAL URU';
   if(result==='PENAL RIVAL') return `PENAL ${st.opponent.toUpperCase()}`;
@@ -625,6 +656,7 @@ function scrumTotalHTML(team){
 }
 function setPieceRows(team,origin){
   const rows=(st.closed||[]).filter(x=>x.team===team&&x.origin===origin).map(x=>({...x,isOpen:false}));
+  (st.launches||[]).filter(x=>x.lite&&x.team===team&&x.type===origin).forEach(x=>rows.push({team:x.team,origin:x.type,zStart:x.z,start:x.start,end:x.start,meta:{...x},isOpen:false,lite:true}));
   if(st.sequence?.team===team&&st.sequence?.origin===origin)rows.push({...st.sequence,isOpen:true,end:null});
   return rows.sort((a,b)=>stampValue(a.start)-stampValue(b.start));
 }
@@ -655,6 +687,7 @@ function stampValue(v){
   return m?((Number(m[1])-1)*2400+Number(m[2])*60+Number(m[3])):0;
 }
 function standalonePenaltyConsequence(row){
+  if(row?.meta?.penaltyConsequence)return row.meta.penaltyConsequence;
   const t=stampValue(row.end||row.start);
   const candidates=(st.closed||[]).slice().reverse().filter(x=>x.origin==='PENAL'&&stampValue(x.start)>=t-2);
   const seq=candidates[0];
@@ -787,13 +820,13 @@ function renderDashboard(){
       <div class="team-stat-name">URU</div>
       <div class="team-stat-main">${uEntry.total}</div>
       <div class="team-stat-caption">entradas</div>
-      <div class="team-stat-rate">${uEntry.pct===null?'—':uEntry.pct+'%'} <small>efectividad · ${uEntry.positive}/${uEntry.total} positivas</small></div>
+      <div class="team-stat-rate">${uEntry.pct===null?'—':uEntry.pct+'%'} <small>efectividad · ${uEntry.positive}/${uEntry.resolved} resueltas${uEntry.pending?` · ${uEntry.pending} abierta${uEntry.pending>1?'s':''}`:''}</small></div>
     </div>
     <div class="team-stat rival" style="--team-color:${safe(st.opponentColor)}">
       <div class="team-stat-name">${safe(rival)}</div>
       <div class="team-stat-main">${rEntry.total}</div>
       <div class="team-stat-caption">entradas</div>
-      <div class="team-stat-rate">${rEntry.pct===null?'—':rEntry.pct+'%'} <small>efectividad · ${rEntry.positive}/${rEntry.total} positivas</small></div>
+      <div class="team-stat-rate">${rEntry.pct===null?'—':rEntry.pct+'%'} <small>efectividad · ${rEntry.positive}/${rEntry.resolved} resueltas${rEntry.pending?` · ${rEntry.pending} abierta${rEntry.pending>1?'s':''}`:''}</small></div>
     </div>
   </div>`;
 
@@ -816,6 +849,136 @@ function renderDashboard(){
   $('#fixedDefenseScrumTotal').innerHTML=scrumTotalHTML('RIVAL');
   $('#fixedDefenseLineList').innerHTML=lineListHTML('RIVAL');
   $('#fixedDefenseScrumList').innerHTML=scrumListHTML('RIVAL');
+}
+function liteLog(label,team,data={}){
+  st.liteLog=st.liteLog||[];
+  st.liteLog.unshift({label,team,time:stamp(),...data});
+  st.liteLog=st.liteLog.slice(0,30);
+}
+function litePendingEntry(team){return (st.liteEntries||[]).find(x=>x.team===team&&x.status==='PENDING')||null}
+function liteResolveEntry(team,status,points=0,reason=''){
+  const e=litePendingEntry(team);if(!e)return false;
+  e.status=status;e.end=stamp();e.points=(e.points||0)+points;e.reason=reason||e.reason||'';return true
+}
+function liteEntryAction(team){
+  st.liteEntries=st.liteEntries||[];
+  if(litePendingEntry(team)){alert(`${teamLabel(team)} ya tiene una entrada a 22 abierta.`);return false}
+  st.liteEntries.unshift({team,start:stamp(),zone:target22Zone(team),status:'PENDING',points:0});
+  liteLog('ENTRADA 22',team);return true
+}
+function liteSetPiece(team,type,z,meta){
+  st.launches=st.launches||[];
+  st.launches.push({team,type,z,start:stamp(),lite:true,...meta});
+  liteLog(type,team,{z,detail:type==='LINE'?`${meta.lineStructure} · ${meta.throw} · ${meta.obtention}`:meta.obtention});
+}
+function liteRecordBreak(team,z,playerData={}){
+  st.liteBreaks=st.liteBreaks||[];
+  st.liteBreaks.unshift({type:'QUIEBRE',team,z,time:stamp(),lite:true,breakJersey:playerData.jersey||null,breakPlayer:playerData.player||null,jersey:playerData.jersey||null,player:playerData.player||null});
+  st.breaks=st.breaks||{URU:0,RIVAL:0};st.breaks[team]=(st.breaks[team]||0)+1;
+  liteLog('QUIEBRE',team,{z,detail:eventPlayerLabel({team,...playerData})});
+}
+async function litePenaltyConsequence(committedBy){
+  if(committedBy!=='URU')return {label:null,score:0};
+  const choice=await flow('LITE · PENAL EN CONTRA · consecuencia',['PALOS +3','PALOS ERRADO','LINE','SCRUM','TAP','OTRO']);
+  if(choice==='LINE'||choice==='SCRUM'){
+    const z=await zone(`LITE · ${choice} POST PENAL · zona`);
+    return {label:`${choice} ${z}`,score:0};
+  }
+  if(choice==='PALOS +3')return {label:'PALOS +3',score:3};
+  return {label:choice,score:0};
+}
+function liteRecordPenalty(committedBy,phase,z,detail={},consequence={}){
+  const possession=phase==='ATAQUE'?committedBy:other(committedBy);
+  const meta={penaltyZone:z,lite:true,...detail};
+  if(consequence.label)meta.penaltyConsequence=consequence.label;
+  recordStandalonePenalty(committedBy,z,meta,possession);
+  const attacking=other(committedBy);
+  if(litePendingEntry(attacking))liteResolveEntry(attacking,'POSITIVA',0,'PENAL FAVORABLE');
+  if(litePendingEntry(committedBy))liteResolveEntry(committedBy,'NEGATIVA',0,'PENAL EN CONTRA');
+  if(consequence.score){
+    addScore(other(committedBy),consequence.score,'PENAL A PALOS','LITE');
+  }
+  liteLog('PENAL',committedBy,{z,detail:[phase,detail.penaltyReason,eventPlayerLabel(detail),consequence.label].filter(Boolean).join(' · ')});
+}
+function liteRecordScore(team,pts,kind){
+  addScore(team,pts,kind,'LITE');
+  if(litePendingEntry(team))liteResolveEntry(team,'POSITIVA',pts,kind);
+  liteLog(kind,team,{detail:`+${pts}`});
+}
+function renderLite(){
+  if(!st)return;
+  const rival=st.opponent||'RIVAL';
+  const title=$('#liteRivalTitle');if(title)title.textContent=rival.toUpperCase();
+  ['URU','RIVAL'].forEach(team=>{
+    const pending=litePendingEntry(team), stats=entryStats(team), box=$(`#liteEntry${team}`), close=$(`#liteExit${team}`);
+    if(box)box.innerHTML=pending?`<b>22 ABIERTA</b><span>${safe(pending.start)}</span>`:`<b>${stats.total}</b><span>entradas · ${stats.pct===null?'—':stats.pct+'%'} efectividad</span>`;
+    if(close)close.disabled=!pending;
+  });
+  const log=$('#liteLog');
+  if(log){const rows=(st.liteLog||[]).slice(0,8);log.innerHTML=rows.length?rows.map(x=>`<div class="lite-log-row"><span>${safe(x.time)}</span><b>${safe(teamLabel(x.team))}</b><span>${safe(x.label)}${x.z?` · ${safe(x.z)}`:''}${x.detail?` · ${safe(x.detail)}`:''}</span></div>`).join(''):'<div class="empty-stat">Sin acciones LITE todavía</div>'}
+}
+function applyTagMode(){
+  document.body.classList.toggle('lite-tagging',tagMode==='LITE');
+  $('#modeFull')?.classList.toggle('active',tagMode==='FULL');
+  $('#modeLite')?.classList.toggle('active',tagMode==='LITE');
+  renderLite();
+}
+async function setTagMode(mode){
+  if(mode==='LITE'&&st?.sequence){alert('Cerrá la secuencia FULL que está abierta antes de pasar a LITE.');return}
+  tagMode=mode;localStorage.setItem(TAG_MODE,mode);applyTagMode();
+}
+async function handleLiteAction(action,team){
+  if(!canTagCurrent)return;
+  if(!(await ensureClock()))return;
+  if(action==='entry'){
+    pushUndo();if(liteEntryAction(team)){save();render()}else undoStack.pop();return
+  }
+  if(action==='exit22'){
+    if(!litePendingEntry(team))return;pushUndo();liteResolveEntry(team,'NEGATIVA',0,'SALIDA SIN RESULTADO');liteLog('SALIDA 22 · SIN RESULTADO',team);save();render();return
+  }
+  if(action==='break'){
+    const z=await zone(`LITE · QUIEBRE ${teamLabel(team)} · zona`);
+    const playerData=teamPlayerChoiceData(team,await flow(`LITE · QUIEBRE ${teamLabel(team)} · jugador`,teamPlayerChoices(team)));
+    pushUndo();liteRecordBreak(team,z,playerData);save();render();return
+  }
+  if(action==='penalty'){
+    const phase=await flow(`LITE · PENAL ${teamLabel(team)} · fase`,['ATAQUE','DEFENSA']);
+    const z=await zone(`LITE · PENAL ${teamLabel(team)} · zona`);
+    let detail={};
+    if(team==='URU'){
+      const reason=await flow('LITE · PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','SCRUM','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']);
+      const p=teamPlayerChoiceData('URU',await flow('LITE · PENAL URU · jugador',teamPlayerChoices('URU')));
+      detail={penaltyReason:reason,penaltyJersey:p.jersey,penaltyPlayer:p.player,team:'URU'};
+    }
+    const consequence=await litePenaltyConsequence(team);
+    pushUndo();liteRecordPenalty(team,phase,z,detail,consequence);save();render();return
+  }
+  if(action==='line'){
+    const z=await zone(`LITE · LINE ${teamLabel(team)} · zona`);
+    const men=await flow('LITE · LINE · cantidad de jugadores',['3','4','5','6','7']);
+    const plusOne=(await flow(`LITE · LINE · ${men} · ¿hay +1?`,['NO','SÍ']))==='SÍ';
+    const structure=plusOne?`${men}+1`:`${men}`;
+    const thr=await flow('LITE · LINE · tiro',['ADELANTE','MEDIO','COLA']);
+    const obtention=await flow('LITE · LINE · obtención',['OBTENIDO','NO OBTENIDO']);
+    const maul=obtention==='OBTENIDO'?await flow('LITE · LINE · ¿hay maul?',['MAUL','NO MAUL']):'NO MAUL';
+    pushUndo();liteSetPiece(team,'LINE',z,{men,plusOne,lineStructure:structure,throw:thr,obtention,maul});save();render();return
+  }
+  if(action==='scrum'){
+    const z=await zone(`LITE · SCRUM ${teamLabel(team)} · zona`);
+    const side=await flow('LITE · SCRUM · ubicación',['IZQUIERDA','CENTRO','DERECHA']);
+    const obtention=await flow('LITE · SCRUM · obtención',['OBTENIDO','NO OBTENIDO']);
+    pushUndo();liteSetPiece(team,'SCRUM',z,{side,obtention});save();render();return
+  }
+  if(action==='try'){
+    const conv=await flow(`LITE · TRY ${teamLabel(team)} · conversión`,['CONVERTIDA +2','ERRADA']);
+    pushUndo();liteRecordScore(team,5,'TRY');if(conv==='CONVERTIDA +2')liteRecordScore(team,2,'CONVERSIÓN');save();render();return
+  }
+  if(action==='penalty3'){
+    pushUndo();liteRecordScore(team,3,'PENAL A PALOS');save();render();return
+  }
+  if(action==='drop'){
+    pushUndo();liteRecordScore(team,3,'DROP');save();render();return
+  }
 }
 function originMetaHTML(s){if(!s)return '<span>Elegí un origen para iniciar la secuencia.</span>';const items=[];if(s.origin==='LINE')items.push(['CONFIG.',lineStructureLabel(s.meta)],['DÓNDE TIRAMOS',lineThrowLabel(s.meta.throw)],['OBTENCIÓN',s.meta.obtention||'—'],['MAUL',s.meta.maul||'—'],['ZONA INICIO',s.zStart]);else if(s.origin==='SCRUM')items.push(['UBICACIÓN',s.meta.side||'—'],['OBTENCIÓN',s.meta.obtention||'—'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='RECEPCIÓN KICK')items.push(['ORIGEN','RECEPCIÓN'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TURNOVER')items.push(['ORIGEN','TURNOVER'],['ZONA',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TAP PENAL')items.push(['ORIGEN','TAP PENAL'],['ZONA',zoneName(s.zStart)],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='FREE KICK')items.push(['ORIGEN','FREE KICK'],['ZONA',s.zStart],['A FAVOR',teamLabel(s.team)]);return items.map(([l,v])=>`<div class="origin-meta-item"><div class="origin-meta-label">${safe(l)}</div><div class="origin-meta-value">${safe(v)}</div></div>`).join('')}
 function applyRoleUI(){document.body.classList.toggle('viewer-mode',!canTagCurrent);document.body.classList.toggle('public-view',!!publicViewToken);let badge='SOLO DASHBOARD';if(publicViewToken)badge='MODO ENTRENADOR · EN VIVO';else if(canTagCurrent&&currentRole==='admin')badge='ADMIN · ETIQUETADOR';else if(canTagCurrent)badge='ETIQUETADOR ASIGNADO';else if(currentRole==='admin')badge='ADMIN · SOLO DASHBOARD';else if(currentRole==='editor')badge='ANALISTA · NO ASIGNADO';$('#roleBadge').textContent=badge;$('#accessBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#backToMatches').style.display=publicViewToken?'none':'';if(!canTagCurrent){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')}}
@@ -960,7 +1123,7 @@ function render(){if(!st)return;renderClock();const s=st.sequence,rival=st.oppon
 $('#sequenceRows').innerHTML=st.closed.length?st.closed.slice(0,30).map((x,i)=>`<tr><td>${safe(x.end||x.start)}</td><td><span class="team-pill ${x.team==='RIVAL'?'rival':''}"${x.team==='RIVAL'?` style="background:${safe(st.opponentColor)}"`:''}>${safe(teamLabel(x.team))}</span></td><td><b>${safe(originDisplay(x))}</b></td><td>${safe(zoneName(x.zStart))}</td><td>${safe(zoneName(x.zEnd))}</td><td>${safe(penaltyDisplay(x.result))}</td><td><button type="button" class="rating-pill valuation-toggle ${x.valuation==='POSITIVA'?'positive':'negative'}" data-valuation-index="${i}">${safe(x.valuation)}</button></td><td>${x.events.length?x.events.map(e=>safe(eventDisplay(e))).join(', '):'—'}</td><td><button type="button" class="small-btn ghost edit-seq-btn" data-edit-seq="${i}">EDITAR</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty-row">Sin secuencias todavía</td></tr>';
 $('#sequenceRows').querySelectorAll('[data-valuation-index]').forEach(b=>b.onclick=()=>toggleClosedValuation(Number(b.dataset.valuationIndex)));
 $('#sequenceRows').querySelectorAll('[data-edit-seq]').forEach(b=>b.onclick=()=>editClosedSequence(Number(b.dataset.editSeq)));
-renderDashboard();applyRoleUI()}
+renderDashboard();renderLite();applyTagMode();applyRoleUI()}
 function download(name,type,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function csv(){const rows=[['team','origin','zStart','start','end','result','zEnd','valuation','events']];st.closed.slice().reverse().forEach(x=>rows.push([teamLabel(x.team),x.origin,x.zStart,x.start,x.end,x.result,x.zEnd,x.valuation,x.events.map(e=>e.type).join('|')]));return rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n')}
 function onTap(sel,fn){$(sel).addEventListener('click',async e=>{if(!canTagCurrent)return;if(sel!=='#undoAction'&&sel!=='#voiceTagBtn')pushUndo();flashButton(e.currentTarget);await fn(e.currentTarget)})}
@@ -981,7 +1144,7 @@ async function openGame(id){stopTimer();unsubscribe();publicViewToken=null;activ
 async function createMatch(name,color,roster={}){if(!navigator.onLine){alert('Para crear un partido nuevo necesitás conexión. Después podés taggear offline.');return}const initial=defaultState(name,color);initial.roster=roster||{};const {data,error}=await sb.from('matches').insert({created_by:user.id,assigned_tagger:user.id,opponent_name:name,opponent_color:color,live_state:initial}).select().single();if(error){alert('No pude crear el partido: '+error.message);return}await openGame(data.id)}
 async function showAccess(){if(currentRole!=='admin')return;$('#accessModal').classList.remove('hidden');currentViewerLink='';$('#viewerLinkBox').classList.add('hidden');$('#viewerLinkStatus').textContent='';await loadMembers()}
 async function loadMembers(){const box=$('#memberList');box.innerHTML='<div class="no-matches">Cargando…</div>';const {data,error}=await sb.rpc('get_match_members_v2',{p_match_id:activeId});if(error){box.innerHTML=`<div class="no-matches">${safe(error.message)}</div>`;return}box.innerHTML=(data||[]).map(m=>`<div class="member-row"><div><div class="member-email">${safe(m.email)} ${m.is_tagger?'<span class="tagger-badge">ETIQUETADOR</span>':''}</div><div class="member-role">${m.role==='admin'?'Administrador':m.role==='editor'?'Analista':'Acceso antiguo de lectura'}</div></div><div class="member-actions">${m.user_id!==user.id?`<button type="button" class="small-btn danger" data-remove="${m.user_id}">QUITAR</button>`:''}</div></div>`).join('')||'<div class="no-matches">Sin usuarios internos.</div>';box.querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Quitar acceso a este usuario?'))return;const {error}=await sb.rpc('remove_match_member',{p_match_id:activeId,p_user_id:b.dataset.remove});if(error)alert(error.message);else loadMembers()})}
-async function assignTagger(email){const msg=$('#taggerMessage');msg.textContent='Asignando…';let {data,error}=await sb.rpc('assign_match_tagger_by_email',{p_match_id:activeId,p_email:email});if(error&&error.message.includes('USER_NOT_FOUND')){msg.textContent='Creando cuenta y enviando link de acceso…';const {error:otpError}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});if(otpError){msg.textContent='No pude crear la cuenta: '+otpError.message;return}for(let i=0;i<3;i++){await new Promise(r=>setTimeout(r,250*(i+1)));({data,error}=await sb.rpc('assign_match_tagger_by_email',{p_match_id:activeId,p_email:email}));if(!error)break}}if(error){msg.textContent=error.message;return}assignedTagger=data?.user_id||null;canTagCurrent=!!user&&assignedTagger===user.id;msg.textContent=`Etiquetador asignado: ${data?.email||email}. Si la cuenta era nueva, le enviamos un link para entrar.`;await loadMembers();render()}
+async function assignTagger(email){const msg=$('#taggerMessage');msg.textContent='Asignando…';let {data,error}=await sb.rpc('assign_match_tagger_by_email',{p_match_id:activeId,p_email:email});if(error&&error.message.includes('USER_NOT_FOUND')){msg.textContent='Creando cuenta y enviando link de acceso…';const {error:otpError}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:'https://liveteros.netlify.app/'}});if(otpError){msg.textContent='No pude crear la cuenta: '+otpError.message;return}for(let i=0;i<3;i++){await new Promise(r=>setTimeout(r,250*(i+1)));({data,error}=await sb.rpc('assign_match_tagger_by_email',{p_match_id:activeId,p_email:email}));if(!error)break}}if(error){msg.textContent=error.message;return}assignedTagger=data?.user_id||null;canTagCurrent=!!user&&assignedTagger===user.id;msg.textContent=`Etiquetador asignado: ${data?.email||email}. Si la cuenta era nueva, le enviamos un link para entrar.`;await loadMembers();render()}
 async function createViewerLink(){const status=$('#viewerLinkStatus');status.textContent='Generando link…';const {data,error}=await sb.rpc('rotate_match_view_token',{p_match_id:activeId});if(error){status.textContent=error.message;return}currentViewerLink=`${location.origin}${location.pathname}?view=${encodeURIComponent(data)}`;$('#viewerLinkInput').value=currentViewerLink;$('#viewerLinkBox').classList.remove('hidden');status.textContent='Link activo. Si generás otro, el anterior deja de funcionar.'}
 async function disableViewerLink(){if(!confirm('¿Desactivar el link de dashboard de este partido?'))return;const {error}=await sb.rpc('disable_match_view_link',{p_match_id:activeId});if(error){$('#viewerLinkStatus').textContent=error.message;return}currentViewerLink='';$('#viewerLinkInput').value='';$('#viewerLinkBox').classList.add('hidden');$('#viewerLinkStatus').textContent='Link desactivado.'}
 async function copyViewerLink(){if(!currentViewerLink)return;try{await navigator.clipboard.writeText(currentViewerLink);$('#viewerLinkStatus').textContent='Link copiado.'}catch{$('#viewerLinkInput').select();document.execCommand('copy');$('#viewerLinkStatus').textContent='Link copiado.'}}
@@ -1067,7 +1230,7 @@ async function createDemoMatch(){
 }
 async function boot(){onlineUI();const viewToken=new URLSearchParams(location.search).get('view');if(viewToken){await openPublicView(viewToken);return}const {data:{session}}=await sb.auth.getSession();user=session?.user||null;if(!user){$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden');$('.app-shell').classList.add('manager-open');return}$('#authScreen').classList.add('hidden');await openManager();if(activeId){/* openManager clears it by design */}}
 $('#authForm').addEventListener('submit',async e=>{e.preventDefault();$('#authMessage').textContent='Ingresando…';const email=$('#authEmail').value.trim(),password=$('#authPassword').value;const {data,error}=await sb.auth.signInWithPassword({email,password});if(error){$('#authMessage').textContent=error.message;return}user=data.user;$('#authScreen').classList.add('hidden');await openManager()});
-$('#magicLinkBtn').addEventListener('click',async()=>{const email=$('#authEmail').value.trim();if(!email){$('#authMessage').textContent='Ingresá tu email.';return}$('#authMessage').textContent='Enviando link…';const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(error){$('#authMessage').textContent=error.message;return}$('#authMessage').textContent='Te enviamos un link de acceso al email. Abrilo para entrar a Live Teros.'});
+$('#magicLinkBtn').addEventListener('click',async()=>{const email=$('#authEmail').value.trim();if(!email){$('#authMessage').textContent='Ingresá tu email.';return}$('#authMessage').textContent='Enviando link…';const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:'https://liveteros.netlify.app/'}});if(error){$('#authMessage').textContent=error.message;return}$('#authMessage').textContent='Te enviamos un link de acceso al email. Abrilo para entrar a Live Teros.'});
 $('#signUpBtn').addEventListener('click',async()=>{const email=$('#authEmail').value.trim(),password=$('#authPassword').value;if(!email||password.length<6){$('#authMessage').textContent='Ingresá email y una contraseña de al menos 6 caracteres.';return}$('#authMessage').textContent='Creando cuenta…';const {data,error}=await sb.auth.signUp({email,password});if(error){$('#authMessage').textContent=error.message;return}if(data.session){user=data.user;$('#authScreen').classList.add('hidden');await openManager()}else $('#authMessage').textContent='Cuenta creada. Revisá tu email para confirmar y después ingresá.'});
 $('#signOutBtn').addEventListener('click',async()=>{stopTimer();unsubscribe();await sb.auth.signOut();user=null;activeId=null;$('#matchManager').classList.add('hidden');$('#authScreen').classList.remove('hidden')});
 $('#newMatchForm').addEventListener('submit',async e=>{e.preventDefault();const name=$('#opponentName').value.trim();if(!name)return;const roster=parseRoster($('#rosterInput').value);await createMatch(name,selectedColor,roster);$('#opponentName').value='';$('#rosterInput').value=''});
@@ -1094,20 +1257,19 @@ onTap('#startFreeKick',async()=>{
 onTap('#startLine',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
   const z=await zone('LINE · zona de inicio');
-  const men=await flow('LINE · cantidad base de hombres',['3','4','5','6','7']);
-  const config=await flow(`LINE · ${men} · configuración`,['NORMAL','+1']);
-  const plusOne=config==='+1';
+  const men=await flow('LINE · cantidad de jugadores',['3','4','5','6','7']);
+  const plusOne=(await flow(`LINE · ${men} · ¿hay +1?`,['NO','SÍ']))==='SÍ';
   const lineStructure=plusOne?`${men}+1`:`${men}`;
   const thr=await flow('LINE · tiro',['ADELANTE','MEDIO','COLA']);
   const obtention=await flow('LINE · obtención',['OBTENIDO','NO OBTENIDO']);
+  const maul=obtention==='OBTENIDO'?await flow('LINE · ¿hay maul?',['MAUL','NO MAUL']):'NO MAUL';
   const baseMeta={men,plusOne,lineStructure,throw:thr,obtention};
   if(obtention==='NO OBTENIDO'){
-    openSeq('LINE',z,{...baseMeta,maul:'—'});
-    st.launches.push({team:st.team,type:'LINE',z,...baseMeta,maul:'—'});
+    openSeq('LINE',z,{...baseMeta,maul});
+    st.launches.push({team:st.team,type:'LINE',z,...baseMeta,maul});
     await resolveSetPieceNotObtained('LINE',z);
     return
   }
-  const maul=await flow('LINE · ¿hay maul?',['MAUL','NO MAUL']);
   openSeq('LINE',z,{...baseMeta,maul});
   st.launches.push({team:st.team,type:'LINE',z,...baseMeta,maul});
   save();render()
@@ -1544,6 +1706,10 @@ onTap('#finish',async()=>{
   await resolveWithAdvantage(normalized,z);
 });
 $('#exportJson').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.json`,'application/json',JSON.stringify(st,null,2));$('#exportCsv').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.csv`,'text/csv;charset=utf-8',csv());$('#resetMatch').onclick=()=>{if(!canTagCurrent||!confirm('¿Reiniciar este partido? Se borrarán sus eventos.'))return;stopTimer();const opp=st.opponent,color=st.opponentColor,created=st.createdAt;st={...defaultState(opp,color),createdAt:created};save();render()};
+$('#modeFull').onclick=()=>setTagMode('FULL');
+$('#modeLite').onclick=()=>setTagMode('LITE');
+$('#liteUndo').onclick=()=>undoLastAction();
+$$('[data-lite]').forEach(b=>b.onclick=()=>handleLiteAction(b.dataset.lite,b.dataset.team));
 $$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{if(publicViewToken)return;user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});

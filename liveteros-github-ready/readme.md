@@ -1,3 +1,7 @@
+## V3.4 LIVE LITE
+
+Esta versión agrega un modo LITE de etiquetado para alimentar el dashboard en vivo con Entradas a 22, Quiebres, Penales, Line, Scrum y marcador, sin secuencias ni valoración.
+
 # Los Teros Live V4 Online
 
 Esta versión usa Supabase para login, partidos online, permisos y actualización del dashboard en tiempo real. Mantiene cache local para seguir taggeando si se corta la conexión una vez que el partido fue abierto online.
