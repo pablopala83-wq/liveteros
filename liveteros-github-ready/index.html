@@ -31,7 +31,7 @@
             <button id="signInBtn" class="manager-primary" type="submit">INGRESAR</button>
             <button id="signUpBtn" class="small-btn ghost" type="button">CREAR CUENTA</button>
           </div>
-          <div id="authMessage" class="muted" style="margin-top:12px"></div>
+          <div id="authMessage" class="muted" style="margin-top:12px"></div><div class="field-help" style="margin-top:12px">Sólo los administradores y etiquetadores necesitan cuenta. Los entrenadores pueden entrar al dashboard por link.</div>
         </form>
       </div>
     </div>
@@ -76,7 +76,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.8 · JG + LINE + SCRUM</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.0 · ACCESS</div>
         </div>
       </div>
 
@@ -222,79 +222,97 @@
           <button type="button" class="dash-tab" data-dash="scrum">SCRUM</button>
         </div>
 
-        <div id="generalDash" class="dash-panel dashboard-stack">
-          <div class="dashboard-grid two">
-            <div class="metric-card feature-card"><div class="panel-kicker">ENTRADAS A 22 · EFECTIVIDAD OFENSIVA</div><div id="entry22Compare"></div></div>
-            <div class="metric-card feature-card"><div class="panel-kicker">SCRUM · OBTENCIÓN TOTAL</div><div id="scrumCompare"></div></div>
+        <div id="generalDash" class="dash-panel dashboard-stack general-compact-dash">
+          <div class="general-top-grid">
+            <div class="metric-card compact-feature-card"><div class="panel-kicker">ENTRADAS A 22 · EFECTIVIDAD OFENSIVA</div><div id="entry22Compare"></div></div>
+            <div class="metric-card compact-feature-card"><div class="panel-kicker">DISCIPLINA · PENALES EN ATAQUE / DEFENSA</div><div id="disciplineCompare"></div></div>
           </div>
-          <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="lineZoneCompare" class="compare-stack"></div></div>
-          <div class="metric-card"><div class="panel-kicker">DISCIPLINA · PENALES EN ATAQUE / DEFENSA</div><div id="disciplineCompare"></div></div>
-          <div class="metric-card breaks-master-card">
-            <div class="panel-kicker">QUIEBRES</div>
-            <div id="breakMaps"></div>
-          </div>
-          <div class="metric-card">
+          <div class="metric-card penalty-master-card">
             <div class="panel-kicker">DISCIPLINA URU · DETALLE DE PENALES</div>
             <div id="generalPenaltyList"></div>
           </div>
+          <div class="metric-card breaks-master-card compact-break-card">
+            <div class="panel-kicker">QUIEBRES</div>
+            <div id="breakMaps"></div>
+          </div>
         </div>
 
-        
-        <div id="lineDash" class="dash-panel hidden dashboard-stack fixed-theme">
+        <div id="lineDash" class="dash-panel hidden dashboard-stack fixed-theme compact-fixed-dash">
           <div class="setpiece-tab-intro">
-            <div><div class="panel-title">LINE</div><div class="muted">Obtención, zona, configuración y ubicación del lanzamiento.</div></div>
+            <div><div class="panel-title">LINE</div><div class="muted">Lista completa y obtención agrupada por cantidad real de jugadores en el line.</div></div>
           </div>
 
-          <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
-          <div class="setpiece-summary-grid line-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedAttackLineMenPct"></div></div>
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR ZONA</div><div id="fixedAttackLineZone"></div></div>
-          </div>
-          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
+          <section class="line-team-section">
+            <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
+            <div class="line-team-grid">
+              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
+              <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedAttackLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
+            </div>
+          </section>
 
-          <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
-          <div class="setpiece-summary-grid line-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedDefenseLineMenPct"></div></div>
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR ZONA</div><div id="fixedDefenseLineZone"></div></div>
-          </div>
-          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
+          <section class="line-team-section rival-section">
+            <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
+            <div class="line-team-grid">
+              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
+              <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedDefenseLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
+            </div>
+          </section>
         </div>
 
-        <div id="scrumDash" class="dash-panel hidden dashboard-stack fixed-theme">
+        <div id="scrumDash" class="dash-panel hidden fixed-theme compact-fixed-dash">
           <div class="setpiece-tab-intro">
-            <div><div class="panel-title">SCRUM</div><div class="muted">Obtención total y detalle de cada scrum del partido.</div></div>
+            <div><div class="panel-title">SCRUM</div><div class="muted">Scrums propios y rivales en paralelo para navegar el partido más rápido.</div></div>
           </div>
 
-          <div class="fixed-heading"><span>ATAQUE · URU</span><small>Scrums propios</small></div>
-          <div class="setpiece-summary-grid scrum-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
+          <div class="scrum-split-grid">
+            <section class="scrum-team-column">
+              <div class="fixed-heading"><span>URU</span><small>Scrums propios</small></div>
+              <div class="metric-card scrum-rate-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
+              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS SCRUMS · URU</div><div id="fixedAttackScrumList"></div></div>
+            </section>
+            <section class="scrum-team-column rival-section">
+              <div class="fixed-heading rival"><span>RIVAL</span><small>Scrums propios del rival</small></div>
+              <div class="metric-card scrum-rate-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
+              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS SCRUMS · RIVAL</div><div id="fixedDefenseScrumList"></div></div>
+            </section>
           </div>
-          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · URU</div><div id="fixedAttackScrumList"></div></div>
-
-          <div class="fixed-heading rival"><span>DEFENSA</span><small>Scrums propios del rival</small></div>
-          <div class="setpiece-summary-grid scrum-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
-          </div>
-          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · RIVAL</div><div id="fixedDefenseScrumList"></div></div>
         </div>
         </div>
       </section>
     </section>
   </main>
   <section id="accessModal" class="match-manager hidden" style="z-index:50">
-    <div class="manager-card" style="max-width:820px">
-      <div class="manager-brand"><img src="assets/teros-shield.png" alt=""/><div><div class="manager-title">ACCESO AL PARTIDO</div><div class="manager-sub">Compartir dashboard o edición</div></div><button type="button" id="closeAccess" class="small-btn ghost" style="margin-left:auto">CERRAR</button></div>
-      <div class="manager-grid" style="grid-template-columns:1fr 1fr">
-        <form id="shareForm" class="new-match-card">
-          <div class="panel-title">AGREGAR USUARIO</div>
-          <label class="field-label" for="shareEmail">Email</label>
-          <input id="shareEmail" class="text-input" type="email" required placeholder="coach@ejemplo.com" />
-          <label class="field-label" for="shareRole">Permiso</label>
-          <select id="shareRole" class="text-input"><option value="viewer">Solo dashboard</option><option value="editor">Puede taggear</option><option value="admin">Administrador</option></select>
-          <button class="manager-primary" type="submit">DAR ACCESO</button>
-          <div id="shareMessage" class="muted" style="margin-top:10px"></div>
-        </form>
-        <div class="saved-matches-card"><div class="panel-title">USUARIOS CON ACCESO</div><div id="memberList" class="saved-matches"></div></div>
+    <div class="manager-card" style="max-width:980px">
+      <div class="manager-brand"><img src="assets/teros-shield.png" alt=""/><div><div class="manager-title">ACCESO AL PARTIDO</div><div class="manager-sub">UN ETIQUETADOR · VIEWERS POR LINK</div></div><button type="button" id="closeAccess" class="small-btn ghost" style="margin-left:auto">CERRAR</button></div>
+      <div class="access-grid">
+        <div class="access-stack">
+          <form id="taggerForm" class="new-match-card">
+            <div class="panel-title">ETIQUETADOR ASIGNADO</div>
+            <div class="field-help">Es la única cuenta que puede modificar el partido. Para cambiar de operador, asigná otro email.</div>
+            <label class="field-label" for="taggerEmail">Email del etiquetador</label>
+            <input id="taggerEmail" class="text-input" type="email" required placeholder="analista@ejemplo.com" />
+            <button class="manager-primary" type="submit">ASIGNAR ETIQUETADOR</button>
+            <div id="taggerMessage" class="muted" style="margin-top:10px"></div>
+          </form>
+
+          <div class="new-match-card">
+            <div class="panel-title">DASHBOARD · SOLO LECTURA</div>
+            <div class="field-help">Guzmán, Caco y el resto del staff no necesitan cuenta. Este link abre directamente el dashboard y no permite editar nada.</div>
+            <button id="generateViewerLink" class="manager-primary" type="button">GENERAR / RENOVAR LINK</button>
+            <div id="viewerLinkBox" class="viewer-link-box hidden">
+              <input id="viewerLinkInput" class="text-input" type="text" readonly />
+              <button id="copyViewerLink" class="small-btn primary" type="button">COPIAR LINK</button>
+            </div>
+            <div class="viewer-link-actions"><button id="disableViewerLink" class="small-btn danger" type="button">DESACTIVAR LINK</button></div>
+            <div id="viewerLinkStatus" class="muted" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <div class="saved-matches-card">
+          <div class="panel-title">USUARIOS INTERNOS</div>
+          <div class="field-help">Sólo hacen falta para administración o tagging. Los viewers por link no aparecen acá.</div>
+          <div id="memberList" class="saved-matches"></div>
+        </div>
       </div>
     </div>
   </section>

@@ -325,3 +325,6 @@ Publishable key: incluida en `app.js` (es una key pública de frontend).
 - Se pueden encadenar hasta 60 deshacer consecutivos.
 - El historial ya no se borra al abrir/cerrar secuencias.
 - Cambio manual de posesión, voz, cambios/tarjetas y eventos principales quedan cubiertos.
+
+## V3.0 access model
+Each match has one assigned tagger. Coaches and staff can use a secure read-only match link and do not need accounts. Admins can rotate or disable the viewer link and change the assigned tagger from ACCESO.
