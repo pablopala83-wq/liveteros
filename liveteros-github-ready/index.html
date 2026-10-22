@@ -29,9 +29,10 @@
           <input id="authPassword" class="text-input" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" />
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button id="signInBtn" class="manager-primary" type="submit">INGRESAR</button>
-            <button id="signUpBtn" class="small-btn ghost" type="button">CREAR CUENTA</button>
+            <button id="magicLinkBtn" class="small-btn primary" type="button">ENVIAR LINK DE ACCESO</button>
+            <button id="signUpBtn" class="small-btn ghost" type="button">CREAR CUENTA CON CONTRASEÑA</button>
           </div>
-          <div id="authMessage" class="muted" style="margin-top:12px"></div><div class="field-help" style="margin-top:12px">Sólo los administradores y etiquetadores necesitan cuenta. Los entrenadores pueden entrar al dashboard por link.</div>
+          <div id="authMessage" class="muted" style="margin-top:12px"></div><div class="field-help" style="margin-top:12px">Sólo administradores y etiquetadores necesitan cuenta. Si te asignaron como etiquetador, podés entrar sin contraseña con “Enviar link de acceso”. Los entrenadores entran al dashboard por link.</div>
         </form>
       </div>
     </div>
@@ -76,7 +77,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.0 · ACCESS</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.1 · ACCESS + LINE</div>
         </div>
       </div>
 
@@ -237,26 +238,24 @@
           </div>
         </div>
 
-        <div id="lineDash" class="dash-panel hidden dashboard-stack fixed-theme compact-fixed-dash">
+        <div id="lineDash" class="dash-panel hidden fixed-theme compact-fixed-dash">
           <div class="setpiece-tab-intro">
-            <div><div class="panel-title">LINE</div><div class="muted">Lista completa y obtención agrupada por cantidad real de jugadores en el line.</div></div>
+            <div><div class="panel-title">LINE</div><div class="muted">Ataque y defensa en paralelo para navegar el partido más rápido.</div></div>
           </div>
 
-          <section class="line-team-section">
-            <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
-            <div class="line-team-grid">
+          <div class="line-split-grid">
+            <section class="line-team-column">
+              <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
               <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
               <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedAttackLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
-            </div>
-          </section>
+            </section>
 
-          <section class="line-team-section rival-section">
-            <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
-            <div class="line-team-grid">
+            <section class="line-team-column rival-section">
+              <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
               <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
               <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedDefenseLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
 
         <div id="scrumDash" class="dash-panel hidden fixed-theme compact-fixed-dash">
@@ -288,7 +287,7 @@
         <div class="access-stack">
           <form id="taggerForm" class="new-match-card">
             <div class="panel-title">ETIQUETADOR ASIGNADO</div>
-            <div class="field-help">Es la única cuenta que puede modificar el partido. Para cambiar de operador, asigná otro email.</div>
+            <div class="field-help">Es la única cuenta que puede modificar el partido. Si el email todavía no tiene cuenta, Live Teros la crea y le envía un link de acceso automáticamente.</div>
             <label class="field-label" for="taggerEmail">Email del etiquetador</label>
             <input id="taggerEmail" class="text-input" type="email" required placeholder="analista@ejemplo.com" />
             <button class="manager-primary" type="submit">ASIGNAR ETIQUETADOR</button>

@@ -901,9 +901,8 @@
 .compact-break-card{padding:14px 16px!important}
 
 .compact-fixed-dash{gap:12px}
-.line-team-section{display:grid;gap:8px}
-.line-team-section+.line-team-section{margin-top:4px}
-.line-team-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.line-split-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:12px;align-items:start}
+.line-team-column{display:grid;gap:8px;min-width:0}
 .line-rate-card{min-height:0!important;padding:14px 16px!important}
 .line-rate-card .rate-row{grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
 .line-rate-card .rate-tile{padding:10px 6px}
@@ -925,7 +924,7 @@
 .scrum-team-column .setpiece-table.scrum-detail-table{min-width:460px}
 
 @media(max-width:980px){
-  .general-top-grid,.line-team-grid,.scrum-split-grid{grid-template-columns:1fr}
+  .general-top-grid,.line-split-grid,.scrum-split-grid{grid-template-columns:1fr}
   .compact-setpiece-list .setpiece-table-wrap{max-height:260px}
 }
 
