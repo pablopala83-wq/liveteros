@@ -76,7 +76,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.7 · JG + FF</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V2.8 · JG + LINE + SCRUM</div>
         </div>
       </div>
 
@@ -191,7 +191,7 @@
           <div class="voice-examples">
             Ejemplos: “Line Uruguay en Gestación OF, cinco más uno, atrás, obtenido, maul” ·
             “Kick territorio a Zona Garra, recibe Chile” ·
-            “Penal Uruguay, pesca, seis” · “Quiebre Chile, carril derecho, Gestación DEF”.
+            “Penal Uruguay, pesca, seis” · “Quiebre Chile, Gestación DEF”.
           </div>
         </section>
 
@@ -218,7 +218,8 @@
       <section id="dashView" class="hidden">
         <div class="tabs sub-tabs" role="tablist" aria-label="Dashboard">
           <button type="button" class="dash-tab active" data-dash="general">JUEGO GENERAL</button>
-          <button type="button" class="dash-tab" data-dash="fixed">FORMACIONES FIJAS</button>
+          <button type="button" class="dash-tab" data-dash="line">LINE</button>
+          <button type="button" class="dash-tab" data-dash="scrum">SCRUM</button>
         </div>
 
         <div id="generalDash" class="dash-panel dashboard-stack">
@@ -239,28 +240,42 @@
         </div>
 
         
-        <div id="fixedDash" class="dash-panel hidden dashboard-stack fixed-theme">
-          <div class="fixed-heading"><span>ATAQUE · URU</span><small>Formaciones propias</small></div>
-          <div class="setpiece-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedAttackLineMenPct"></div></div>
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedAttackLineZone"></div></div>
-            <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
-          </div>
-          <div class="setpiece-detail-stack">
-            <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
-            <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · URU</div><div id="fixedAttackScrumList"></div></div>
+        <div id="lineDash" class="dash-panel hidden dashboard-stack fixed-theme">
+          <div class="setpiece-tab-intro">
+            <div><div class="panel-title">LINE</div><div class="muted">Obtención, zona, configuración y ubicación del lanzamiento.</div></div>
           </div>
 
-          <div class="fixed-heading rival"><span>DEFENSA</span><small>Formaciones propias del rival</small></div>
-          <div class="setpiece-summary-grid">
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedDefenseLineMenPct"></div></div>
-            <div class="metric-card"><div class="panel-kicker">LINE · % OBTENCIÓN POR ZONA</div><div id="fixedDefenseLineZone"></div></div>
-            <div class="metric-card"><div class="panel-kicker">SCRUM · % OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
+          <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
+          <div class="setpiece-summary-grid line-summary-grid">
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedAttackLineMenPct"></div></div>
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR ZONA</div><div id="fixedAttackLineZone"></div></div>
           </div>
-          <div class="setpiece-detail-stack">
-            <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
-            <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · RIVAL</div><div id="fixedDefenseScrumList"></div></div>
+          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
+
+          <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
+          <div class="setpiece-summary-grid line-summary-grid">
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR Nº DE HOMBRES</div><div id="fixedDefenseLineMenPct"></div></div>
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN POR ZONA</div><div id="fixedDefenseLineZone"></div></div>
           </div>
+          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
+        </div>
+
+        <div id="scrumDash" class="dash-panel hidden dashboard-stack fixed-theme">
+          <div class="setpiece-tab-intro">
+            <div><div class="panel-title">SCRUM</div><div class="muted">Obtención total y detalle de cada scrum del partido.</div></div>
+          </div>
+
+          <div class="fixed-heading"><span>ATAQUE · URU</span><small>Scrums propios</small></div>
+          <div class="setpiece-summary-grid scrum-summary-grid">
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
+          </div>
+          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · URU</div><div id="fixedAttackScrumList"></div></div>
+
+          <div class="fixed-heading rival"><span>DEFENSA</span><small>Scrums propios del rival</small></div>
+          <div class="setpiece-summary-grid scrum-summary-grid">
+            <div class="metric-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
+          </div>
+          <div class="metric-card setpiece-list-card"><div class="panel-kicker">TODOS LOS SCRUMS · RIVAL</div><div id="fixedDefenseScrumList"></div></div>
         </div>
         </div>
       </section>

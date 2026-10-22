@@ -66,7 +66,7 @@ function eventDisplay(e){
   if(e.type==='VENTAJA')return `VENTAJA · ${e.advantageType} · ${e.beneficiary==='URU'?'URU':(st?.opponent||'RIVAL')} · ${e.z||'—'}`;
   if(e.type==='VENTAJA TERMINADA')return 'VENTAJA TERMINADA';
   if(e.type==='VUELVE A VENTAJA')return `VUELVE A ${e.advantageType}`;
-  return String(e.type||'')+(e.lane?` (${e.lane})`:'');
+  return String(e.type||'');
 }
 function nextSequenceAfter(x){
   const all=(st.closed||[]).slice().reverse();
@@ -426,46 +426,28 @@ function breakEvents(team){
   return out
 }
 function breakCount(team,key,value){return breakEvents(team).filter(e=>e[key]===value).length}
-function breakTableHTML(kind){
-  const isZone=kind==='zone';
-  const cols=isZone?['Z1','Z2','Z3','Z4']:['IZQ','CENTRO','DER'];
-  const title=isZone?'QUIEBRES POR ZONA':'QUIEBRES POR CARRIL';
-  const key=isZone?'z':'lane';
-
+function breakTableHTML(){
+  const cols=['Z1','Z2','Z3','Z4'];
   const row=(team,name,cls)=>{
     const ev=breakEvents(team);
     return `<tr class="${cls}">
       <th scope="row">${safe(name)}</th>
-      ${cols.map(v=>`<td>${breakCount(team,key,v)}</td>`).join('')}
+      ${cols.map(v=>`<td>${breakCount(team,'z',v)}</td>`).join('')}
       <td class="break-total">${ev.length}</td>
     </tr>`;
   };
 
-  return `<section class="break-table-card ${isZone?'zone-table':'lane-table'}">
-    <div class="break-table-title">${title}</div>
+  return `<section class="break-table-card zone-table">
+    <div class="break-table-title">QUIEBRES POR ZONA</div>
     <div class="break-table-scroll">
       <table class="break-data-table">
-        <thead>
-          <tr>
-            <th>EQUIPO</th>
-            ${cols.map(v=>`<th>${safe(isZone?zoneName(v):v)}</th>`).join('')}
-            <th>TOTAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${row('URU','URU','uru')}
-          ${row('RIVAL',st.opponent,'rival')}
-        </tbody>
+        <thead><tr><th>EQUIPO</th>${cols.map(v=>`<th>${safe(zoneName(v))}</th>`).join('')}<th>TOTAL</th></tr></thead>
+        <tbody>${row('URU','URU','uru')}${row('RIVAL',st.opponent,'rival')}</tbody>
       </table>
     </div>
   </section>`;
 }
-function breakMapHTML(){
-  return `<div class="break-tables-layout">
-    ${breakTableHTML('zone')}
-    ${breakTableHTML('lane')}
-  </div>`;
-}
+function breakMapHTML(){return `<div class="break-tables-layout break-zone-only">${breakTableHTML()}</div>`;}
 function penaltyDisplay(result){
   if(result==='PENAL URU') return 'PENAL URU';
   if(result==='PENAL RIVAL') return `PENAL ${st.opponent.toUpperCase()}`;
@@ -939,13 +921,12 @@ async function editClosedSequence(index){
   if(what==='QUIEBRES'){
     let target=breaks[0];
     if(breaks.length>1){
-      const labels=breaks.map((x,n)=>`${n+1} · ${zoneName(x.e.z)} · ${x.e.lane||'—'}`);
+      const labels=breaks.map((x,n)=>`${n+1} · ${zoneName(x.e.z)}`);
       target=breaks[labels.indexOf(await flow('EDITAR · elegí el quiebre',labels))];
     }
     if(target){
-      const field=await flow('EDITAR QUIEBRE',['ZONA','CARRIL','EQUIPO']);
+      const field=await flow('EDITAR QUIEBRE',['ZONA','EQUIPO']);
       if(field==='ZONA')target.e.z=await zone('QUIEBRE · zona');
-      if(field==='CARRIL')target.e.lane=await flow('QUIEBRE · carril',['IZQ','CENTRO','DER']);
       if(field==='EQUIPO'){const who=await flow('QUIEBRE · equipo',['URU',st.opponent]);target.e.team=who==='URU'?'URU':'RIVAL'}
     }
   }
@@ -1022,7 +1003,7 @@ function demoState(){
   // URU set piece
   line('URU','Z1',5,'MEDIO','OBTENIDO','NO MAUL','TOUCH','Z2','POSITIVA');
   line('URU','Z2',5,'COLA','OBTENIDO','MAUL','PENAL RIVAL','Z3','POSITIVA');
-  line('URU','Z3',7,'MEDIO','OBTENIDO','NO MAUL','OTRO','Z4','POSITIVA',[{type:'QUIEBRE',z:'Z4',lane:'CENTRO'}]);
+  line('URU','Z3',7,'MEDIO','OBTENIDO','NO MAUL','OTRO','Z4','POSITIVA',[{type:'QUIEBRE',z:'Z4'}]);
   line('URU','Z4',5,'COLA','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'CONVERTIDA +2'}]);
   line('URU','Z3',5,'ADELANTE','NO OBTENIDO','—','NO OBTENIDO','Z3','NEGATIVA');
   line('URU','Z4',6,'MEDIO','OBTENIDO','NO MAUL','KNOCK ON','Z4','NEGATIVA');
@@ -1031,7 +1012,7 @@ function demoState(){
   scrum('URU','Z4','DERECHA','NO OBTENIDO','PENAL URU','Z4','NEGATIVA',{penaltyReason:'SCRUM',penaltyJersey:'3',penaltyPlayer:d.roster['3']});
   // ENG set piece / defense sequences
   line('RIVAL','Z4',5,'MEDIO','OBTENIDO','NO MAUL','TOUCH','Z3','NEGATIVA');
-  line('RIVAL','Z2',7,'COLA','OBTENIDO','MAUL','OTRO','Z1','POSITIVA',[{type:'QUIEBRE',z:'Z1',lane:'DER'}]);
+  line('RIVAL','Z2',7,'COLA','OBTENIDO','MAUL','OTRO','Z1','POSITIVA',[{type:'QUIEBRE',z:'Z1'}]);
   line('RIVAL','Z1',5,'MEDIO','OBTENIDO','MAUL','TRY','INGOAL','POSITIVA',[{type:'CONVERSIÓN',outcome:'CONVERTIDA +2'}]);
   line('RIVAL','Z1',6,'ADELANTE','NO OBTENIDO','—','NO OBTENIDO','Z1','NEGATIVA');
   scrum('RIVAL','Z3','DERECHA','OBTENIDO','OTRO','Z2','POSITIVA');
@@ -1040,10 +1021,10 @@ function demoState(){
   // receptions, kicks and ping-pong
   add('URU','RECEPCIÓN KICK','Z1','Z3','TOUCH','POSITIVA',{},{type:'KICK'});closed[closed.length-1].events=[{type:'KICK',team:'URU',kickType:'TERRITORIO',z:'Z2',outcome:'OTRO KICK / PING PONG'},{type:'KICK',team:'RIVAL',kickType:'TERRITORIO',z:'Z3',outcome:'OTRO KICK / PING PONG'},{type:'KICK',team:'URU',kickType:'TOUCH',z:'Z3',outcome:'TOUCH',touchMode:'DIRECTO AL TOUCH'}];
   add('RIVAL','RECEPCIÓN KICK','Z4','Z2','TOUCH','POSITIVA',{},[{type:'KICK',team:'RIVAL',kickType:'CAJÓN 9',z:'Z3',outcome:'RECIBE URU'}]);
-  add('URU','RECEPCIÓN KICK','Z2','Z4','PENAL RIVAL','POSITIVA',{entry22Counted:true},[{type:'KICK',team:'URU',kickType:'A DISPUTAR',z:'Z3',outcome:'RECUPERA URU'},{type:'QUIEBRE',z:'Z4',lane:'IZQ'}]);
-  add('RIVAL','RECEPCIÓN KICK','Z4','Z1','PENAL URU','POSITIVA',{entry22Counted:true,penaltyReason:'OFFSIDE',penaltyJersey:'11',penaltyPlayer:d.roster['11']},[{type:'KICK',team:'RIVAL',kickType:'PASS KICK',z:'Z2',outcome:'MANTIENE POSESIÓN'},{type:'QUIEBRE',z:'Z1',lane:'CENTRO'}]);
+  add('URU','RECEPCIÓN KICK','Z2','Z4','PENAL RIVAL','POSITIVA',{entry22Counted:true},[{type:'KICK',team:'URU',kickType:'A DISPUTAR',z:'Z3',outcome:'RECUPERA URU'},{type:'QUIEBRE',z:'Z4'}]);
+  add('RIVAL','RECEPCIÓN KICK','Z4','Z1','PENAL URU','POSITIVA',{entry22Counted:true,penaltyReason:'OFFSIDE',penaltyJersey:'11',penaltyPlayer:d.roster['11']},[{type:'KICK',team:'RIVAL',kickType:'PASS KICK',z:'Z2',outcome:'MANTIENE POSESIÓN'},{type:'QUIEBRE',z:'Z1'}]);
   // penalty chains and points
-  add('URU','TURNOVER','Z2','Z3','PENAL RIVAL','POSITIVA',{},[{type:'QUIEBRE',z:'Z3',lane:'DER'}]);
+  add('URU','TURNOVER','Z2','Z3','PENAL RIVAL','POSITIVA',{},[{type:'QUIEBRE',z:'Z3'}]);
   line('URU','Z3',5,'MEDIO','OBTENIDO','NO MAUL','OTRO','Z4','POSITIVA');
   add('RIVAL','TURNOVER','Z3','Z2','PENAL URU','NEGATIVA',{penaltyReason:'BREAKDOWN · DE COSTADO',penaltyJersey:'7',penaltyPlayer:d.roster['7']},[]);
   line('RIVAL','Z1',5,'COLA','OBTENIDO','MAUL','OTRO','Z1','NEGATIVA');
@@ -1055,8 +1036,8 @@ function demoState(){
   // other origins
   add('URU','FREE KICK','Z2','Z3','TOUCH','POSITIVA',{},[]);
   add('RIVAL','FREE KICK','Z3','Z2','KNOCK ON','NEGATIVA',{},[]);
-  add('URU','TURNOVER','Z3','Z4','OTRO','POSITIVA',{entry22Counted:true},[{type:'QUIEBRE',z:'Z4',lane:'CENTRO'}]);
-  add('RIVAL','TURNOVER','Z2','Z1','OTRO','POSITIVA',{entry22Counted:true},[{type:'QUIEBRE',z:'Z1',lane:'IZQ'}]);
+  add('URU','TURNOVER','Z3','Z4','OTRO','POSITIVA',{entry22Counted:true},[{type:'QUIEBRE',z:'Z4'}]);
+  add('RIVAL','TURNOVER','Z2','Z1','OTRO','POSITIVA',{entry22Counted:true},[{type:'QUIEBRE',z:'Z1'}]);
   // explicit penalties list for standalone starts
   d.penaltyEvents=[
     {result:'PENAL URU',committedBy:'URU',previousTeam:'RIVAL',zStart:'Z2',zEnd:'Z2',start:'2T 22:10',end:'2T 22:10',meta:{penaltyReason:'OFFSIDE',penaltyJersey:'12',penaltyPlayer:d.roster['12']}},
@@ -1209,7 +1190,6 @@ function voiceSummary(cmd){
   if(cmd.outcome)bits.push(cmd.outcome);
   if(cmd.reason)bits.push(cmd.reason);
   if(cmd.jersey)bits.push(`#${cmd.jersey}`);
-  if(cmd.lane)bits.push(cmd.lane);
   return bits.filter(Boolean).join(' · ');
 }
 function parseVoiceCommand(raw){
@@ -1252,8 +1232,7 @@ function parseVoiceCommand(raw){
     return {type:'KICK',team:st.team,kickType,zFrom:zones.length>1?zones[0]:currentBallZone(),zTo:zones.length>1?zones[zones.length-1]:(zones[0]||null),outcome,recipient};
   }
   if(voiceHas(t,'quiebre','break')){
-    return {type:'QUIEBRE',team:team||st.team,zone:zones[0]||null,
-      lane:voiceHas(t,'izquierda')?'IZQ':voiceHas(t,'derecha')?'DER':voiceHas(t,'centro','central')?'CENTRO':null};
+    return {type:'QUIEBRE',team:team||st.team,zone:zones[0]||null};
   }
   if(voiceHas(t,'turnover','recuperacion')){
     return {type:'TURNOVER',team:team||other(st.team),zone:zones[0]||currentBallZone()};
@@ -1327,8 +1306,8 @@ async function applyVoiceCommand(cmd){
   }
   if(cmd.type==='QUIEBRE'){
     if(!st.sequence){alert('Primero tiene que haber una secuencia abierta.');return}
-    pushUndo();const team=cmd.team||st.team;const z=cmd.zone||await zone('VOZ · QUIEBRE · zona');const lane=cmd.lane||await flow('VOZ · QUIEBRE · carril',['IZQ','CENTRO','DER']);
-    st.breaks[team]=(st.breaks[team]||0)+1;addEvent('QUIEBRE',{team,z,lane});return;
+    pushUndo();const team=cmd.team||st.team;const z=cmd.zone||await zone('VOZ · QUIEBRE · zona');
+    st.breaks[team]=(st.breaks[team]||0)+1;addEvent('QUIEBRE',{team,z});return;
   }
   if(cmd.type==='TURNOVER'){
     const z=cmd.zone||currentBallZone()||await zone('VOZ · TURNOVER · zona');
@@ -1436,11 +1415,10 @@ onTap('#turnover',async()=>{
 onTap('#break',async()=>{
   if(!(await ensureClock())||!st.sequence)return;
   pushUndo();
-  const lane=await flow('QUIEBRE · carril',['IZQ','CENTRO','DER']);
   const z=await zone('QUIEBRE · zona');
   const team=st.team;
   st.breaks[team]=(st.breaks[team]||0)+1;
-  addEvent('QUIEBRE',{lane,z,team});
+  addEvent('QUIEBRE',{z,team});
 });
 onTap('#advantage',async()=>{
   if(!(await ensureClock())||!st.sequence)return;
@@ -1566,7 +1544,7 @@ onTap('#finish',async()=>{
   await resolveWithAdvantage(normalized,z);
 });
 $('#exportJson').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.json`,'application/json',JSON.stringify(st,null,2));$('#exportCsv').onclick=()=>download(`URU-${st.opponent}-${Date.now()}.csv`,'text/csv;charset=utf-8',csv());$('#resetMatch').onclick=()=>{if(currentRole==='viewer'||!confirm('¿Reiniciar este partido? Se borrarán sus eventos.'))return;stopTimer();const opp=st.opponent,color=st.opponentColor,created=st.createdAt;st={...defaultState(opp,color),createdAt:created};save();render()};
-$$('.tab').forEach(b=>b.onclick=()=>{if(currentRole==='viewer'&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','fixed'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
+$$('.tab').forEach(b=>b.onclick=()=>{if(currentRole==='viewer'&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
