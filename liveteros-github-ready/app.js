@@ -481,7 +481,7 @@ function breakDetailHTML(){
     </table></div>
   </section>`;
 }
-function breakMapHTML(){return `<div class="break-tables-layout">${breakTableHTML()}${breakDetailHTML()}</div>`;}
+function breakMapHTML(){return `<div class="break-tables-layout break-zone-only">${breakTableHTML()}</div>`;}
 function penaltyDisplay(result){
   if(result==='PENAL URU') return 'PENAL URU';
   if(result==='PENAL RIVAL') return `PENAL ${st.opponent.toUpperCase()}`;
@@ -652,7 +652,7 @@ function sequenceListHTML(team,origin){
 }
 function scrumTotalHTML(team){
   const t=scrumTotal(team);
-  return `<div class="single-rate">${rateTile('TOTAL',t.won,t.total)}</div>`;
+  return `${pctText(t.won,t.total)} · ${t.won}/${t.total}`;
 }
 function setPieceRows(team,origin){
   const rows=(st.closed||[]).filter(x=>x.team===team&&x.origin===origin).map(x=>({...x,isOpen:false}));
@@ -666,7 +666,7 @@ function setPieceStatusHTML(obtention,isOpen=false){
   return `<span class="setpiece-status ${won?'won':'lost'}">${safe(obtention||'—')}</span>`;
 }
 function lineListHTML(team){
-  const rows=setPieceRows(team,'LINE');
+  const rows=[...setPieceRows(team,'LINE')].sort((a,b)=>stampValue(b.start)-stampValue(a.start));
   if(!rows.length)return '<div class="empty-stat">Sin lines registrados</div>';
   return `<div class="setpiece-table-wrap"><div class="setpiece-table line-detail-table">
     <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>HOMBRES</span><span>TIRO</span><span>OBTENCIÓN</span><span>MAUL</span></div>
@@ -860,18 +860,37 @@ function liteResolveEntry(team,status,points=0,reason=''){
   const e=litePendingEntry(team);if(!e)return false;
   e.status=status;e.end=stamp();e.points=(e.points||0)+points;e.reason=reason||e.reason||'';return true
 }
-function liteEntryAction(team){
+function liteOpenEntry(team,source='MANUAL',logIt=true){
   st.liteEntries=st.liteEntries||[];
+  const current=litePendingEntry(team);if(current)return current;
+  const entry={team,start:stamp(),zone:target22Zone(team),status:'PENDING',points:0,source,automatic:source!=='MANUAL'};
+  st.liteEntries.unshift(entry);
+  if(logIt)liteLog(source==='MANUAL'?'ENTRADA 22 · MANUAL':'ENTRADA 22 · AUTO',team,{detail:source==='MANUAL'?'RESPALDO':source});
+  return entry
+}
+function liteInferEntry(team,z,source){
+  if(z!==target22Zone(team))return false;
+  if(litePendingEntry(team))return false;
+  liteOpenEntry(team,source||`EVENTO ${z}`,true);return true
+}
+function liteCloseEntriesForNewSetPiece(){
+  ['URU','RIVAL'].forEach(t=>{if(litePendingEntry(t))liteResolveEntry(t,'NEGATIVA',0,'NUEVA FORMACIÓN FIJA')});
+}
+function liteEntryAction(team){
   if(litePendingEntry(team)){alert(`${teamLabel(team)} ya tiene una entrada a 22 abierta.`);return false}
-  st.liteEntries.unshift({team,start:stamp(),zone:target22Zone(team),status:'PENDING',points:0});
-  liteLog('ENTRADA 22',team);return true
+  liteOpenEntry(team,'MANUAL',true);return true
 }
 function liteSetPiece(team,type,z,meta){
+  // Una formación fija inicia una nueva secuencia: cierra cualquier visita anterior y puede inferir una nueva entrada.
+  liteCloseEntriesForNewSetPiece();
+  liteInferEntry(team,z,`${type} · INICIO ${z}`);
   st.launches=st.launches||[];
   st.launches.push({team,type,z,start:stamp(),lite:true,...meta});
+  if(meta.obtention==='NO OBTENIDO'&&litePendingEntry(team))liteResolveEntry(team,'NEGATIVA',0,`${type} NO OBTENIDO`);
   liteLog(type,team,{z,detail:type==='LINE'?`${meta.lineStructure} · ${meta.throw} · ${meta.obtention}`:meta.obtention});
 }
 function liteRecordBreak(team,z,playerData={}){
+  liteInferEntry(team,z,'QUIEBRE EN 22');
   st.liteBreaks=st.liteBreaks||[];
   st.liteBreaks.unshift({type:'QUIEBRE',team,z,time:stamp(),lite:true,breakJersey:playerData.jersey||null,breakPlayer:playerData.player||null,jersey:playerData.jersey||null,player:playerData.player||null});
   st.breaks=st.breaks||{URU:0,RIVAL:0};st.breaks[team]=(st.breaks[team]||0)+1;
@@ -889,6 +908,8 @@ async function litePenaltyConsequence(committedBy){
 }
 function liteRecordPenalty(committedBy,phase,z,detail={},consequence={}){
   const possession=phase==='ATAQUE'?committedBy:other(committedBy);
+  // Un penal dentro del 22 demuestra que la posesión que terminó con ese penal ya había entrado.
+  liteInferEntry(possession,z,'PENAL EN 22');
   const meta={penaltyZone:z,lite:true,...detail};
   if(consequence.label)meta.penaltyConsequence=consequence.label;
   recordStandalonePenalty(committedBy,z,meta,possession);
@@ -901,6 +922,11 @@ function liteRecordPenalty(committedBy,phase,z,detail={},consequence={}){
   liteLog('PENAL',committedBy,{z,detail:[phase,detail.penaltyReason,eventPlayerLabel(detail),consequence.label].filter(Boolean).join(' · ')});
 }
 function liteRecordScore(team,pts,kind){
+  // El try siempre implica haber pasado por el 22. Palos/drop pueden venir desde afuera y no permiten inferirlo.
+  if(kind==='TRY'){
+    liteInferEntry(team,target22Zone(team),'TRY');
+    const rival=other(team);if(litePendingEntry(rival))liteResolveEntry(rival,'NEGATIVA',0,'TRY RIVAL');
+  }
   addScore(team,pts,kind,'LITE');
   if(litePendingEntry(team))liteResolveEntry(team,'POSITIVA',pts,kind);
   liteLog(kind,team,{detail:`+${pts}`});

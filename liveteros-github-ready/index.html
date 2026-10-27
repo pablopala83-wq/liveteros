@@ -77,7 +77,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.5 · LITE UX</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.7 · DASHBOARD COMPACTO</div>
         </div>
       </div>
 
@@ -122,11 +122,11 @@
           <div class="lite-head"><div><div class="panel-title">LIVE LITE</div><div class="muted">Sólo captura los KPIs que llegan al dashboard en vivo.</div></div><button type="button" id="liteUndo" class="small-btn ghost">↶ DESHACER</button></div>
           <div class="lite-team-grid">
             <section class="lite-team-card uru"><div class="lite-team-title">URU</div><div class="lite-kpi-grid">
-              <button type="button" class="lite-action primary" data-lite="entry" data-team="URU">+ ENTRADA 22</button><button type="button" class="lite-action" data-lite="break" data-team="URU">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="URU">PENAL URU</button><button type="button" class="lite-action" data-lite="line" data-team="URU">LINE URU</button><button type="button" class="lite-action" data-lite="scrum" data-team="URU">SCRUM URU</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="URU">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="URU">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="URU">DROP +3</button>
-            </div><button type="button" id="liteExitURU" class="lite-entry-close" data-lite="exit22" data-team="URU">SALIDA 22 / SIN RESULTADO</button><div id="liteEntryURU" class="lite-entry-state"></div></section>
+              <button type="button" class="lite-action" data-lite="break" data-team="URU">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="URU">PENAL URU</button><button type="button" class="lite-action" data-lite="line" data-team="URU">LINE URU</button><button type="button" class="lite-action" data-lite="scrum" data-team="URU">SCRUM URU</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="URU">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="URU">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="URU">DROP +3</button>
+            </div><div class="lite-entry-tools"><button type="button" class="lite-entry-manual" data-lite="entry" data-team="URU">+ ENTRADA 22 MANUAL</button><button type="button" id="liteExitURU" class="lite-entry-close" data-lite="exit22" data-team="URU">SALIDA 22 / SIN RESULTADO</button></div><div id="liteEntryURU" class="lite-entry-state"></div></section>
             <section class="lite-team-card rival"><div id="liteRivalTitle" class="lite-team-title">RIVAL</div><div class="lite-kpi-grid">
-              <button type="button" class="lite-action primary" data-lite="entry" data-team="RIVAL">+ ENTRADA 22</button><button type="button" class="lite-action" data-lite="break" data-team="RIVAL">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="RIVAL">PENAL RIVAL</button><button type="button" class="lite-action" data-lite="line" data-team="RIVAL">LINE RIVAL</button><button type="button" class="lite-action" data-lite="scrum" data-team="RIVAL">SCRUM RIVAL</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="RIVAL">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="RIVAL">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="RIVAL">DROP +3</button>
-            </div><button type="button" id="liteExitRIVAL" class="lite-entry-close" data-lite="exit22" data-team="RIVAL">SALIDA 22 / SIN RESULTADO</button><div id="liteEntryRIVAL" class="lite-entry-state"></div></section>
+              <button type="button" class="lite-action" data-lite="break" data-team="RIVAL">QUIEBRE</button><button type="button" class="lite-action danger-soft" data-lite="penalty" data-team="RIVAL">PENAL RIVAL</button><button type="button" class="lite-action" data-lite="line" data-team="RIVAL">LINE RIVAL</button><button type="button" class="lite-action" data-lite="scrum" data-team="RIVAL">SCRUM RIVAL</button><button type="button" class="lite-action score-lite" data-lite="try" data-team="RIVAL">TRY +5</button><button type="button" class="lite-action score-lite" data-lite="penalty3" data-team="RIVAL">PALOS +3</button><button type="button" class="lite-action score-lite" data-lite="drop" data-team="RIVAL">DROP +3</button>
+            </div><div class="lite-entry-tools"><button type="button" class="lite-entry-manual" data-lite="entry" data-team="RIVAL">+ ENTRADA 22 MANUAL</button><button type="button" id="liteExitRIVAL" class="lite-entry-close" data-lite="exit22" data-team="RIVAL">SALIDA 22 / SIN RESULTADO</button></div><div id="liteEntryRIVAL" class="lite-entry-state"></div></section>
           </div>
           <section class="lite-log-card"><div class="panel-kicker">ÚLTIMAS ACCIONES LITE</div><div id="liteLog" class="lite-log"></div></section>
         </section>
@@ -268,14 +268,14 @@
           <div class="line-split-grid">
             <section class="line-team-column">
               <div class="fixed-heading"><span>ATAQUE · URU</span><small>Lines propios</small></div>
-              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
               <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedAttackLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
+              <div class="metric-card setpiece-list-card compact-setpiece-list line-scroll-card"><div class="panel-kicker">TODOS LOS LINES · URU</div><div id="fixedAttackLineList"></div></div>
             </section>
 
             <section class="line-team-column rival-section">
               <div class="fixed-heading rival"><span>DEFENSA</span><small>Lines propios del rival</small></div>
-              <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
               <div class="metric-card line-rate-card"><div class="panel-kicker">% OBTENCIÓN · JUGADORES EN EL LINE</div><div id="fixedDefenseLineMenPct"></div><div class="stat-note">El +1 no cuenta para esta agrupación.</div></div>
+              <div class="metric-card setpiece-list-card compact-setpiece-list line-scroll-card"><div class="panel-kicker">TODOS LOS LINES · RIVAL</div><div id="fixedDefenseLineList"></div></div>
             </section>
           </div>
         </div>
@@ -287,13 +287,11 @@
 
           <div class="scrum-split-grid">
             <section class="scrum-team-column">
-              <div class="fixed-heading"><span>URU</span><small>Scrums propios</small></div>
-              <div class="metric-card scrum-rate-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedAttackScrumTotal"></div></div>
+              <div class="fixed-heading"><span>URU</span><small>Scrums propios · <b id="fixedAttackScrumTotal" class="scrum-heading-rate">—</b></small></div>
               <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS SCRUMS · URU</div><div id="fixedAttackScrumList"></div></div>
             </section>
             <section class="scrum-team-column rival-section">
-              <div class="fixed-heading rival"><span>RIVAL</span><small>Scrums propios del rival</small></div>
-              <div class="metric-card scrum-rate-card"><div class="panel-kicker">% OBTENCIÓN TOTAL</div><div id="fixedDefenseScrumTotal"></div></div>
+              <div class="fixed-heading rival"><span>RIVAL</span><small>Scrums propios del rival · <b id="fixedDefenseScrumTotal" class="scrum-heading-rate">—</b></small></div>
               <div class="metric-card setpiece-list-card compact-setpiece-list"><div class="panel-kicker">TODOS LOS SCRUMS · RIVAL</div><div id="fixedDefenseScrumList"></div></div>
             </section>
           </div>
