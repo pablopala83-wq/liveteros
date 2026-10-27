@@ -1,4 +1,8 @@
-## V3.4 LIVE LITE
+## V3.5 · UX + DASHBOARD
+
+Opciones LITE inline y Juego General reordenado en dos columnas. Ver `V3.5-CHANGES.md`.
+
+## V3.5 LIVE LITE
 
 Esta versión agrega un modo LITE de etiquetado para alimentar el dashboard en vivo con Entradas a 22, Quiebres, Penales, Line, Scrum y marcador, sin secuencias ni valoración.
 
