@@ -489,7 +489,7 @@ function penaltyTimelineEvents(){
 }
 function penaltyTimelineHTML(){
   const events=penaltyTimelineEvents();
-  if(!events.length)return '<div class="penalty-timeline-empty">Sin penales registrados</div>';
+  if(!events.length)return '<div class="penalty-strip-empty">Sin penales registrados</div>';
 
   const runs=[];
   events.forEach(e=>{
@@ -498,36 +498,30 @@ function penaltyTimelineHTML(){
     else runs.push({team:e.committedBy,events:[e]});
   });
   const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
-  const rival=(st.opponent||'RIVAL').toUpperCase();
 
-  return `<div class="penalty-timeline-card">
-    <div class="penalty-timeline-top">
-      <div>
-        <div class="penalty-timeline-title">SECUENCIA DE PENALES</div>
-        <div class="penalty-timeline-sub">Orden cronológico · rojo = penal URU · verde = penal rival</div>
-      </div>
-      <div class="penalty-max-streak"><span>MÁX. RACHA URU</span><strong>${maxURU}</strong></div>
+  return `<div class="penalty-strip">
+    <div class="penalty-strip-head">
+      <span>SECUENCIA DE PENALES</span>
+      <span class="penalty-strip-legend"><i class="uru"></i> URU <i class="rival"></i> RIVAL</span>
+      <span class="penalty-strip-max">MÁX. RACHA URU <b>${maxURU}</b></span>
     </div>
-    <div class="penalty-timeline-scroll">
-      <div class="penalty-timeline-rail">
-        ${runs.map((run,i)=>{
+    <div class="penalty-strip-scroll">
+      <div class="penalty-strip-rail">
+        ${runs.map(run=>{
           const isURU=run.team==='URU';
-          const prev=runs[i-1];
           const count=run.events.length;
-          const label=isURU?'URU':rival;
-          const streak=count>=2?`${count} SEGUIDOS`:label;
-          const afterURU=!isURU&&prev?.team==='URU'&&prev.events.length?`después de ${prev.events.length} URU`:'';
-          return `<div class="penalty-run ${isURU?'uru':'rival'} ${count>=2?'multi':''}">
-            <div class="penalty-run-head"><b>${safe(streak)}</b>${afterURU?`<small>${safe(afterURU)}</small>`:''}</div>
-            <div class="penalty-run-events">
-              ${run.events.map((e,idx)=>`<div class="penalty-event"><span class="penalty-dot"></span><small>${safe(e.time)}</small>${idx<run.events.length-1?'<i></i>':''}</div>`).join('')}
+          return `<div class="compact-penalty-run ${isURU?'uru':'rival'}">
+            ${isURU&&count>=2?`<span class="compact-streak">×${count}</span>`:'<span class="compact-streak empty">&nbsp;</span>'}
+            <div class="compact-penalty-events">
+              ${run.events.map((e,idx)=>`<div class="compact-penalty-event"><div class="compact-dot-row"><span class="compact-penalty-dot"></span>${idx<run.events.length-1?'<i></i>':''}</div><small>${safe(e.time)}</small></div>`).join('')}
             </div>
-          </div>${i<runs.length-1?'<div class="penalty-run-connector">→</div>':''}`;
+          </div>`;
         }).join('')}
       </div>
     </div>
   </div>`;
 }
+
 function breakEvents(team){
   const out=[];
   (st.closed||[]).forEach(seq=>(seq.events||[]).filter(e=>e.type==='QUIEBRE').forEach(e=>{if((e.team||seq.team)===team)out.push(e)}));
