@@ -490,7 +490,7 @@ function penaltyTimelineEvents(){
 }
 let penaltyCarouselStart=0;
 let penaltyCarouselSignature='';
-const PENALTY_CAROUSEL_SIZE=5;
+function penaltyCarouselSize(){return window.innerWidth<=620?5:9}
 
 function penaltyRuns(){
   const events=penaltyTimelineEvents();
@@ -516,7 +516,8 @@ function penaltyTimelineHTML(){
   }
 
   const signature=`${events.length}|${events[events.length-1]?.time||''}|${events[events.length-1]?.committedBy||''}|${runs.length}`;
-  const lastStart=Math.max(0,runs.length-PENALTY_CAROUSEL_SIZE);
+  const pageSize=penaltyCarouselSize();
+  const lastStart=Math.max(0,runs.length-pageSize);
   if(signature!==penaltyCarouselSignature){
     penaltyCarouselSignature=signature;
     penaltyCarouselStart=lastStart;
@@ -524,12 +525,12 @@ function penaltyTimelineHTML(){
     penaltyCarouselStart=Math.max(0,Math.min(penaltyCarouselStart,lastStart));
   }
 
-  const visible=runs.slice(penaltyCarouselStart,penaltyCarouselStart+PENALTY_CAROUSEL_SIZE);
+  const visible=runs.slice(penaltyCarouselStart,penaltyCarouselStart+pageSize);
   const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
   const firstShown=penaltyCarouselStart+1;
   const lastShown=penaltyCarouselStart+visible.length;
   const canPrev=penaltyCarouselStart>0;
-  const canNext=penaltyCarouselStart+PENALTY_CAROUSEL_SIZE<runs.length;
+  const canNext=penaltyCarouselStart+pageSize<runs.length;
 
   return `<div class="penalty-strip">
     <div class="penalty-strip-head">
@@ -548,7 +549,7 @@ function penaltyTimelineHTML(){
               <small>${penaltyRunTimeLabel(run)}</small>
             </div>`;
           }).join('')}
-          ${Array.from({length:Math.max(0,PENALTY_CAROUSEL_SIZE-visible.length)},()=>'<div class="penalty-run-placeholder" aria-hidden="true"></div>').join('')}
+          ${Array.from({length:Math.max(0,pageSize-visible.length)},()=>'<div class="penalty-run-placeholder" aria-hidden="true"></div>').join('')}
         </div>
       </div>
       <button type="button" class="penalty-carousel-nav next" data-penalty-page="next" ${canNext?'':'disabled'} aria-label="Ver rachas siguientes">›</button>
@@ -557,20 +558,16 @@ function penaltyTimelineHTML(){
   </div>`;
 }
 function bindPenaltyCarousel(){
-  const host=$('#disciplineCompare');
+  const host=$('#penaltyTimelineFull');
   if(!host)return;
   host.querySelectorAll('[data-penalty-page]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const {runs}=penaltyRuns();
-      const lastStart=Math.max(0,runs.length-PENALTY_CAROUSEL_SIZE);
-      if(btn.dataset.penaltyPage==='prev') penaltyCarouselStart=Math.max(0,penaltyCarouselStart-PENALTY_CAROUSEL_SIZE);
-      else penaltyCarouselStart=Math.min(lastStart,penaltyCarouselStart+PENALTY_CAROUSEL_SIZE);
-      const pm=penaltyMatrix();
-      const rival=st.opponent||'RIVAL';
-      host.innerHTML=`<div class="discipline-grid">
-        <div class="discipline-team"><div class="discipline-name">URU</div><div class="discipline-box"><b>${pm.URU.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.URU.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.URU.attack+pm.URU.defense}</b><span>TOTAL</span></div></div>
-        <div class="discipline-team rival" style="--team-color:${safe(st.opponentColor)}"><div class="discipline-name">${safe(rival)}</div><div class="discipline-box"><b>${pm.RIVAL.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.RIVAL.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.RIVAL.attack+pm.RIVAL.defense}</b><span>TOTAL</span></div></div>
-      </div>${penaltyTimelineHTML()}`;
+      const pageSize=penaltyCarouselSize();
+  const lastStart=Math.max(0,runs.length-pageSize);
+      if(btn.dataset.penaltyPage==='prev') penaltyCarouselStart=Math.max(0,penaltyCarouselStart-pageSize);
+      else penaltyCarouselStart=Math.min(lastStart,penaltyCarouselStart+pageSize);
+      host.innerHTML=penaltyTimelineHTML();
       bindPenaltyCarousel();
     });
   });
@@ -997,7 +994,8 @@ function renderDashboard(){
   $('#disciplineCompare').innerHTML=`<div class="discipline-grid">
     <div class="discipline-team"><div class="discipline-name">URU</div><div class="discipline-box"><b>${pm.URU.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.URU.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.URU.attack+pm.URU.defense}</b><span>TOTAL</span></div></div>
     <div class="discipline-team rival" style="--team-color:${safe(st.opponentColor)}"><div class="discipline-name">${safe(rival)}</div><div class="discipline-box"><b>${pm.RIVAL.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.RIVAL.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.RIVAL.attack+pm.RIVAL.defense}</b><span>TOTAL</span></div></div>
-  </div>${penaltyTimelineHTML()}`;
+  </div>`;
+  $('#penaltyTimelineFull').innerHTML=penaltyTimelineHTML();
   bindPenaltyCarousel();
 
   $('#breakMaps').innerHTML=breakMapHTML();
