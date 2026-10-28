@@ -1,3 +1,3 @@
-# Live Teros V3.9.7
+# Live Teros V3.9.8
 
-Incluye la edición de partidos de V3.9.5 y rediseña únicamente la visualización de la secuencia de penales en Disciplina como una banda horizontal compacta.
+Timeline de disciplina agrupada por rachas consecutivas. Mantiene V3.9.7 y evita que una gran cantidad de penales altere el layout.

@@ -1008,3 +1008,21 @@
 .break-table-card.zone-table .break-data-table td{text-align:center}
 .break-table-card.zone-table .break-data-table thead th:first-child,
 .break-table-card.zone-table .break-data-table tbody th{text-align:center}
+
+
+/* V3.9.8 · discipline timeline by consecutive runs */
+.penalty-master-card{min-width:0;max-width:100%;overflow:hidden}
+.penalty-strip{min-width:0;max-width:100%;overflow:hidden}
+.penalty-strip-scroll{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:4px 0 2px}
+.penalty-run-rail{display:flex;align-items:center;gap:6px;width:max-content;min-width:100%;height:38px;padding-right:4px;box-sizing:border-box}
+.penalty-run-chip{display:grid;grid-template-rows:auto auto;gap:1px;min-width:64px;max-width:92px;height:34px;padding:4px 7px 3px;border:1px solid #dce5ec;border-top-width:3px;border-radius:8px;background:#fff;box-sizing:border-box;flex:0 0 auto}
+.penalty-run-chip.uru{border-top-color:var(--uru-celeste)}
+.penalty-run-chip.rival{border-top-color:var(--rival-color,#C8102E)}
+.penalty-run-main{display:flex;align-items:baseline;justify-content:space-between;gap:6px;line-height:1}
+.penalty-run-team{font-size:8px;font-weight:950;letter-spacing:.04em;color:#50657a}
+.penalty-run-chip.uru .penalty-run-team,.penalty-run-chip.uru .penalty-run-main b{color:var(--uru-celeste)}
+.penalty-run-chip.rival .penalty-run-team,.penalty-run-chip.rival .penalty-run-main b{color:var(--rival-color,#C8102E)}
+.penalty-run-main b{font-size:13px;font-weight:950}
+.penalty-run-chip small{font-size:7px;line-height:11px;color:#788a9b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.penalty-run-separator{width:1px;height:21px;background:#d6dfe7;flex:0 0 auto}
+@media(max-width:620px){.penalty-run-chip{min-width:58px;padding-left:6px;padding-right:6px}.penalty-run-rail{gap:5px}}

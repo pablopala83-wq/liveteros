@@ -500,6 +500,12 @@ function penaltyTimelineHTML(){
   });
   const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
 
+  const runTimeLabel=run=>{
+    const first=run.events[0]?.time||'—';
+    const last=run.events[run.events.length-1]?.time||first;
+    return run.events.length===1?safe(first):`${safe(first)}–${safe(last)}`;
+  };
+
   return `<div class="penalty-strip">
     <div class="penalty-strip-head">
       <span>SECUENCIA DE PENALES</span>
@@ -507,17 +513,15 @@ function penaltyTimelineHTML(){
       <span class="penalty-strip-max">MÁX. RACHA URU <b>${maxURU}</b></span>
     </div>
     <div class="penalty-strip-scroll">
-      <div class="penalty-strip-rail">
+      <div class="penalty-run-rail">
         ${runs.map(run=>{
           const isURU=run.team==='URU';
           const count=run.events.length;
-          return `<div class="compact-penalty-run ${isURU?'uru':'rival'}">
-            ${isURU&&count>=2?`<span class="compact-streak">×${count}</span>`:'<span class="compact-streak empty">&nbsp;</span>'}
-            <div class="compact-penalty-events">
-              ${run.events.map((e,idx)=>`<div class="compact-penalty-event"><div class="compact-dot-row"><span class="compact-penalty-dot"></span>${idx<run.events.length-1?'<i></i>':''}</div><small>${safe(e.time)}</small></div>`).join('')}
-            </div>
+          return `<div class="penalty-run-chip ${isURU?'uru':'rival'}" title="${safe(run.team)} · ${count} penal${count===1?'':'es'} · ${runTimeLabel(run)}">
+            <div class="penalty-run-main"><span class="penalty-run-team">${isURU?'URU':'RIVAL'}</span><b>×${count}</b></div>
+            <small>${runTimeLabel(run)}</small>
           </div>`;
-        }).join('')}
+        }).join('<span class="penalty-run-separator" aria-hidden="true"></span>')}
       </div>
     </div>
   </div>`;
