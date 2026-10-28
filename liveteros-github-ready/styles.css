@@ -1064,3 +1064,31 @@
 .penalty-full-band .penalty-strip-head>span:first-child{font-size:8px;font-weight:950;letter-spacing:.08em;color:#52697d}
 .penalty-full-band .penalty-strip-max{font-size:7px;font-weight:900}
 @media(max-width:620px){.penalty-full-band{padding:7px 8px 5px}.penalty-full-band .penalty-carousel-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.penalty-full-band .penalty-carousel{grid-template-columns:26px minmax(0,1fr) 26px}.penalty-full-band .penalty-carousel-nav{width:26px;height:30px}}
+
+
+/* V3.9.11 · ultra-compact full-width discipline strip */
+.penalty-full-band{padding:6px 8px 5px;margin-bottom:8px}
+.penalty-full-band .penalty-strip-head{margin-bottom:1px}
+.penalty-full-band .penalty-carousel{grid-template-columns:24px minmax(0,1fr) 24px;gap:3px;margin-top:1px}
+.penalty-full-band .penalty-carousel.no-paging{display:block}
+.penalty-full-band .penalty-carousel-grid{grid-template-columns:repeat(var(--penalty-cols,16),minmax(0,1fr));gap:3px}
+.penalty-full-band .penalty-carousel-nav{width:24px;height:26px;border-radius:5px;font-size:16px}
+.penalty-full-band .penalty-run-chip{height:26px;padding:2px 3px 1px;border-top-width:2px;border-radius:5px}
+.penalty-full-band .penalty-run-placeholder{height:26px;border-radius:5px}
+.penalty-full-band .penalty-run-main{justify-content:center;gap:2px}
+.penalty-full-band .penalty-run-team{font-size:6px;letter-spacing:0}
+.penalty-full-band .penalty-run-main b{font-size:9px}
+.penalty-full-band .penalty-run-chip small{text-align:center;font-size:5.5px;line-height:7px}
+.penalty-full-band .penalty-carousel-meta{margin-top:1px;min-height:7px;font-size:6px}
+.penalty-full-band .penalty-strip-head>span:first-child{font-size:7.5px}
+.penalty-full-band .penalty-strip-max{font-size:6.5px}
+@media(max-width:620px){
+  .penalty-full-band{padding:6px 6px 4px}
+  .penalty-full-band .penalty-carousel{grid-template-columns:22px minmax(0,1fr) 22px;gap:2px}
+  .penalty-full-band .penalty-carousel-nav{width:22px;height:25px}
+  .penalty-full-band .penalty-carousel-grid{gap:2px}
+  .penalty-full-band .penalty-run-chip,.penalty-full-band .penalty-run-placeholder{height:25px}
+  .penalty-full-band .penalty-run-team{font-size:5.7px}
+  .penalty-full-band .penalty-run-main b{font-size:8.5px}
+  .penalty-full-band .penalty-run-chip small{font-size:5px}
+}

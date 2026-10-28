@@ -490,7 +490,12 @@ function penaltyTimelineEvents(){
 }
 let penaltyCarouselStart=0;
 let penaltyCarouselSignature='';
-function penaltyCarouselSize(){return window.innerWidth<=620?5:9}
+function penaltyCarouselSize(){
+  if(window.innerWidth<=420)return 6;
+  if(window.innerWidth<=620)return 8;
+  if(window.innerWidth<=900)return 18;
+  return 22;
+}
 
 function penaltyRuns(){
   const events=penaltyTimelineEvents();
@@ -531,16 +536,17 @@ function penaltyTimelineHTML(){
   const lastShown=penaltyCarouselStart+visible.length;
   const canPrev=penaltyCarouselStart>0;
   const canNext=penaltyCarouselStart+pageSize<runs.length;
+  const hasPaging=runs.length>pageSize;
 
   return `<div class="penalty-strip">
     <div class="penalty-strip-head">
       <span>SECUENCIA DE PENALES</span>
       <span class="penalty-strip-max">MÁX. RACHA URU <b>${maxURU}</b></span>
     </div>
-    <div class="penalty-carousel" style="--rival-color:${safe(st.opponentColor||'#C8102E')}">
-      <button type="button" class="penalty-carousel-nav prev" data-penalty-page="prev" ${canPrev?'':'disabled'} aria-label="Ver rachas anteriores">‹</button>
+    <div class="penalty-carousel ${hasPaging?'has-paging':'no-paging'}" style="--rival-color:${safe(st.opponentColor||'#C8102E')}">
+      ${hasPaging?`<button type="button" class="penalty-carousel-nav prev" data-penalty-page="prev" ${canPrev?'':'disabled'} aria-label="Ver rachas anteriores">‹</button>`:''}
       <div class="penalty-carousel-window">
-        <div class="penalty-carousel-grid">
+        <div class="penalty-carousel-grid" style="--penalty-cols:${pageSize}">
           ${visible.map(run=>{
             const isURU=run.team==='URU';
             const count=run.events.length;
@@ -549,12 +555,11 @@ function penaltyTimelineHTML(){
               <small>${penaltyRunTimeLabel(run)}</small>
             </div>`;
           }).join('')}
-          ${Array.from({length:Math.max(0,pageSize-visible.length)},()=>'<div class="penalty-run-placeholder" aria-hidden="true"></div>').join('')}
         </div>
       </div>
-      <button type="button" class="penalty-carousel-nav next" data-penalty-page="next" ${canNext?'':'disabled'} aria-label="Ver rachas siguientes">›</button>
+      ${hasPaging?`<button type="button" class="penalty-carousel-nav next" data-penalty-page="next" ${canNext?'':'disabled'} aria-label="Ver rachas siguientes">›</button>`:''}
     </div>
-    <div class="penalty-carousel-meta">RACHAS ${firstShown}–${lastShown} DE ${runs.length}</div>
+    ${hasPaging?`<div class="penalty-carousel-meta">RACHAS ${firstShown}–${lastShown} DE ${runs.length}</div>`:''}
   </div>`;
 }
 function bindPenaltyCarousel(){
