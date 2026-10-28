@@ -993,3 +993,18 @@
 
 /* V3.9.5 · Editar identidad del partido */
 .edit-match-modal{position:fixed;inset:0;z-index:80;background:rgba(3,23,56,.58);display:flex;align-items:center;justify-content:center;padding:20px}.edit-match-modal.hidden{display:none}.edit-match-card{width:min(560px,100%);background:#fff;border-radius:18px;box-shadow:0 28px 90px rgba(0,20,50,.38);padding:22px;border:1px solid rgba(255,255,255,.8)}.edit-color-swatch{width:46px;height:46px;border-radius:999px;border:3px solid #fff;background:var(--sw);box-shadow:0 0 0 1px #b6c6d6;cursor:pointer}.edit-color-swatch.selected{box-shadow:0 0 0 3px #168be8}.saved-match-edit{min-height:40px;border-radius:8px;padding:0 12px;font-weight:900;cursor:pointer;border:1px solid #9fb8d0;background:#f5f9fd;color:#274b70}@media(max-width:600px){.edit-match-modal{padding:10px}.edit-match-card{padding:16px}.saved-match-actions{gap:5px}.saved-match-open,.saved-match-edit,.match-delete{padding:0 9px}}
+
+
+/* V3.9.7 · dashboard polish */
+/* Discipline timeline: team identity colors (not semantic red/green). */
+.penalty-strip-legend i.uru{background:var(--uru-celeste)}
+.penalty-strip-legend i.rival{background:var(--rival-color,#C8102E)}
+.compact-penalty-run.uru .compact-penalty-dot{background:var(--uru-celeste)}
+.compact-penalty-run.rival .compact-penalty-dot{background:var(--rival-color,#C8102E)}
+
+/* Breaks table: centered reading without changing layout dimensions. */
+.break-table-card.zone-table .break-table-title{text-align:center}
+.break-table-card.zone-table .break-data-table th,
+.break-table-card.zone-table .break-data-table td{text-align:center}
+.break-table-card.zone-table .break-data-table thead th:first-child,
+.break-table-card.zone-table .break-data-table tbody th{text-align:center}

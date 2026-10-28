@@ -426,6 +426,7 @@ function defensiveUtilizationRates(origin){
   })
 }
 function scrumTotal(team){const rows=(st.launches||[]).filter(x=>x.team===team&&x.type==='SCRUM');return {won:rows.filter(x=>x.obtention==='OBTENIDO').length,total:rows.length}}
+function lineTotal(team){const rows=(st.launches||[]).filter(x=>x.team===team&&x.type==='LINE');return {won:rows.filter(x=>x.obtention==='OBTENIDO').length,total:rows.length}}
 function lineZoneRates(team){const rows=(st.launches||[]).filter(x=>x.team===team&&x.type==='LINE');return ['Z1','Z2','Z3','Z4'].map(z=>{const r=rows.filter(x=>x.z===z);return {z,won:r.filter(x=>x.obtention==='OBTENIDO').length,total:r.length}})}
 function sequenceReached22(seq){
   if(!seq)return false;
@@ -735,6 +736,10 @@ function scrumTotalHTML(team){
   const t=scrumTotal(team);
   return `${pctText(t.won,t.total)} · ${t.won}/${t.total}`;
 }
+function lineTotalHTML(team){
+  const t=lineTotal(team);
+  return `${pctText(t.won,t.total)} · ${t.won}/${t.total}`;
+}
 function setPieceRows(team,origin){
   const rows=(st.closed||[]).filter(x=>x.team===team&&x.origin===origin).map(x=>({...x,isOpen:false}));
   (st.launches||[]).filter(x=>x.lite&&x.team===team&&x.type===origin).forEach(x=>rows.push({team:x.team,origin:x.type,zStart:x.z,start:x.start,end:x.start,meta:{...x},isOpen:false,lite:true}));
@@ -946,11 +951,13 @@ function renderDashboard(){
 
   // LINE / SCRUM: detalle completo en layout compacto
   $('#fixedAttackLineMenPct').innerHTML=lineMenHTML('URU');
+  $('#fixedAttackLineTotal').innerHTML=lineTotalHTML('URU');
   $('#fixedAttackScrumTotal').innerHTML=scrumTotalHTML('URU');
   $('#fixedAttackLineList').innerHTML=lineListHTML('URU');
   $('#fixedAttackScrumList').innerHTML=scrumListHTML('URU');
 
   $('#fixedDefenseLineMenPct').innerHTML=lineMenHTML('RIVAL');
+  $('#fixedDefenseLineTotal').innerHTML=lineTotalHTML('RIVAL');
   $('#fixedDefenseScrumTotal').innerHTML=scrumTotalHTML('RIVAL');
   $('#fixedDefenseLineList').innerHTML=lineListHTML('RIVAL');
   $('#fixedDefenseScrumList').innerHTML=scrumListHTML('RIVAL');
@@ -1979,6 +1986,6 @@ $$('[data-lite]').forEach(b=>b.onclick=()=>{activeLiteButton=b;handleLiteAction(
 $$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{if(publicViewToken)return;user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=395').then(r=>r.update()).catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=397').then(r=>r.update()).catch(()=>{});
 boot();
 })();
