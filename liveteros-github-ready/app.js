@@ -711,12 +711,26 @@ function scrumPenaltyStatus(meta={},scrumTeam=null){
   }
   return 'PENAL';
 }
+function scrumObtainerHTML(scrumTeam,obtention,isOpen=false){
+  if(isOpen&&!obtention)return '<span class="setpiece-status pending">EN CURSO</span>';
+  if(!obtention)return '<span class="setpiece-status">—</span>';
+  const obtainingTeam=obtention==='OBTENIDO'?scrumTeam:other(scrumTeam);
+  const isURU=obtainingTeam==='URU';
+  const label=isURU?'URU':(st.opponent||'RIVAL').toUpperCase();
+  return `<span class="setpiece-status ${isURU?'won':'lost'}">${safe(label)}</span>`;
+}
+function scrumPenaltyHTML(meta={},scrumTeam=null){
+  const status=scrumPenaltyStatus(meta,scrumTeam);
+  if(status==='A FAVOR')return '<span class="setpiece-status won">A FAVOR</span>';
+  if(status==='EN CONTRA')return '<span class="setpiece-status lost">EN CONTRA</span>';
+  return `<span>${safe(status)}</span>`;
+}
 function scrumListHTML(team){
   const rows=setPieceRows(team,'SCRUM');
   if(!rows.length)return '<div class="empty-stat">Sin scrums registrados</div>';
   return `<div class="setpiece-table-wrap"><div class="setpiece-table scrum-detail-table">
-    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTENCIÓN</span><span>PENAL</span></div>
-    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(x.meta?.side||'—')}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(scrumPenaltyStatus(x.meta||{},team))}</span></div>`).join('')}
+    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTUVO</span><span>PENAL</span></div>
+    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(x.meta?.side||'—')}</span><span>${scrumObtainerHTML(team,x.meta?.obtention,x.isOpen)}</span><span>${scrumPenaltyHTML(x.meta||{},team)}</span></div>`).join('')}
   </div></div>`;
 }
 
@@ -1909,6 +1923,6 @@ $$('[data-lite]').forEach(b=>b.onclick=()=>{activeLiteButton=b;handleLiteAction(
 $$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{if(publicViewToken)return;user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=393').then(r=>r.update()).catch(()=>{});
 boot();
 })();
