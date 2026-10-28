@@ -960,4 +960,4 @@
 /* V3.8 · inline tag correction */
 @media(max-width:760px){.lite-log-row{grid-template-columns:56px 68px minmax(0,1fr) auto;gap:6px}.lite-log-edit{padding:0 6px;font-size:9px}.lite-log-delete{width:28px}}
 
-.flow-nav{display:flex;justify-content:flex-start;margin-top:8px}.flow-back{border:1px solid #cbd8e4;background:#fff;color:#24425f;border-radius:9px;padding:8px 12px;font-size:11px;font-weight:900;letter-spacing:.03em;cursor:pointer}.flow-back:hover{background:#f4f8fb}
+.choice.flow-back-choice{border-style:dashed;background:#f7fafc;color:#526579;font-size:11px}.choice.flow-back-choice:hover{background:#eef4f8}

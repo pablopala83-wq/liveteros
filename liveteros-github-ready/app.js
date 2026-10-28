@@ -131,25 +131,29 @@ const ZONE_CODES={Z1:'ED',Z2:'GD',Z3:'GO',Z4:'ZG'};
 function zoneName(z){return ZONE_NAMES[z]||z||'—'}
 function zoneCode(z){return ZONE_CODES[z]||z||'—'}
 function zoneText(v){return String(v??'—').replace(/\bZ1\b/g,'ED').replace(/\bZ2\b/g,'GD').replace(/\bZ3\b/g,'GO').replace(/\bZ4\b/g,'ZG')}
+const FLOW_BACK='__FLOW_BACK__';
 function choiceClass(v){
+  if(v===FLOW_BACK)return ' flow-back-choice';
   if(ZONE_NAMES[v])return ` zone-choice zone-${String(v).toLowerCase()}`;
   if(v==='POSITIVA')return ' valuation-positive';
   if(v==='NEGATIVA')return ' valuation-negative';
   return '';
 }
-function choiceLabel(v){return ZONE_NAMES[v]||v}
-const FLOW_BACK='__FLOW_BACK__';
-let activeLiteButton=null;function flow(title,buttons,opts={}){const f=$('#flow');if(tagMode==='LITE'&&activeLiteButton?.isConnected){activeLiteButton.insertAdjacentElement('afterend',f);f.classList.add('lite-inline-flow')}else{const home=$('.closed-card');if(home?.parentNode)home.parentNode.insertBefore(f,home);f.classList.remove('lite-inline-flow')}f.classList.remove('hidden');f.innerHTML=`<div class="flow-title">${safe(title)}</div><div class="flow-grid">${buttons.map(b=>`<button type="button" class="choice${choiceClass(b)}" data-v="${safe(b)}">${safe(choiceLabel(b))}</button>`).join('')}</div>${opts.back?'<div class="flow-nav"><button type="button" class="flow-back" data-flow-back>← ATRÁS</button></div>':''}`;return new Promise(res=>{f.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{flashButton(b);setTimeout(()=>{f.classList.add('hidden');res(b.dataset.v)},90)}));f.querySelector('[data-flow-back]')?.addEventListener('click',()=>{f.classList.add('hidden');res(FLOW_BACK)})})}
+function choiceLabel(v){return v===FLOW_BACK?'← ATRÁS':(ZONE_NAMES[v]||v)}
+// V3.9.1: restore the proven V3.8 prompt core. Back is a normal wizard choice,
+// so all buttons use the same reliable click path.
+let activeLiteButton=null;function flow(title,buttons){const f=$('#flow');if(tagMode==='LITE'&&activeLiteButton?.isConnected){activeLiteButton.insertAdjacentElement('afterend',f);f.classList.add('lite-inline-flow')}else{const home=$('.closed-card');if(home?.parentNode)home.parentNode.insertBefore(f,home);f.classList.remove('lite-inline-flow')}f.classList.remove('hidden');f.innerHTML=`<div class="flow-title">${safe(title)}</div><div class="flow-grid">${buttons.map(b=>`<button type="button" class="choice${choiceClass(b)}" data-v="${safe(b)}">${safe(choiceLabel(b))}</button>`).join('')}</div>`;return new Promise(res=>f.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{flashButton(b);setTimeout(()=>{f.classList.add('hidden');res(b.dataset.v)},90)})))}
 const zone=t=>flow(t,['Z1','Z2','Z3','Z4']);
 function wizardStepAt(steps,i,ctx){const raw=steps[i];return typeof raw==='function'?raw(ctx):raw}
 async function runWizard(steps,initial={}){
   const ctx={...initial};let i=0;
   while(i<steps.length){
-    let step=wizardStepAt(steps,i,ctx);
+    const step=wizardStepAt(steps,i,ctx);
     if(!step||(step.when&&!step.when(ctx))){i++;continue}
     const title=typeof step.title==='function'?step.title(ctx):step.title;
-    const buttons=typeof step.buttons==='function'?step.buttons(ctx):step.buttons;
-    const v=await flow(title,buttons,{back:i>0});
+    const baseButtons=typeof step.buttons==='function'?step.buttons(ctx):step.buttons;
+    const buttons=i>0?[...baseButtons,FLOW_BACK]:baseButtons;
+    const v=await flow(title,buttons);
     if(v===FLOW_BACK){
       let j=i-1;
       while(j>=0){const prev=wizardStepAt(steps,j,ctx);if(prev&&(!prev.when||prev.when(ctx)))break;j--}
@@ -697,16 +701,22 @@ function lineListHTML(team){
     ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(lineStructureLabel(x.meta||{}))}</span><span>${safe(lineThrowLabel(x.meta?.throw))}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(x.meta?.maul||'—')}</span></div>`).join('')}
   </div></div>`;
 }
-function scrumPenaltyStatus(meta={}){
-  if(!meta.scrumPenalty&&!meta.penaltyAgainst)return '—';
-  return meta.penaltyAgainst==='DEFENSIVO'?'A FAVOR':meta.penaltyAgainst==='OFENSIVO'?'EN CONTRA':'PENAL';
+function scrumPenaltyStatus(meta={},scrumTeam=null){
+  if(!meta.scrumPenalty&&!meta.penaltyAgainst&&!meta.penaltyUruguay)return '—';
+  if(meta.penaltyUruguay)return meta.penaltyUruguay;
+  if(meta.penaltyCommittedBy)return meta.penaltyCommittedBy==='URU'?'EN CONTRA':'A FAVOR';
+  if(scrumTeam&&meta.penaltyAgainst){
+    const committedBy=meta.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam);
+    return committedBy==='URU'?'EN CONTRA':'A FAVOR';
+  }
+  return 'PENAL';
 }
 function scrumListHTML(team){
   const rows=setPieceRows(team,'SCRUM');
   if(!rows.length)return '<div class="empty-stat">Sin scrums registrados</div>';
   return `<div class="setpiece-table-wrap"><div class="setpiece-table scrum-detail-table">
     <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTENCIÓN</span><span>PENAL</span></div>
-    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(x.meta?.side||'—')}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(scrumPenaltyStatus(x.meta||{}))}</span></div>`).join('')}
+    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(x.meta?.side||'—')}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(scrumPenaltyStatus(x.meta||{},team))}</span></div>`).join('')}
   </div></div>`;
 }
 
@@ -927,7 +937,7 @@ function liteSetPiece(team,type,z,meta,actionId=null,timeOverride=null){
   st.launches=st.launches||[];
   st.launches.push({team,type,z,start:timeOverride||stamp(),lite:true,liteId:id,...meta});
   if(meta.obtention==='NO OBTENIDO'&&litePendingEntry(team))liteResolveEntry(team,'NEGATIVA',0,`${type} NO OBTENIDO`,id);
-  const scrumPenaltyDetail=type==='SCRUM'&&meta.scrumPenalty?` · PENAL ${meta.penaltyAgainst==='DEFENSIVO'?'A FAVOR':'EN CONTRA'}`:'';
+  const scrumPenaltyDetail=type==='SCRUM'&&meta.scrumPenalty?` · PENAL ${scrumPenaltyStatus(meta,team)}`:'';
   liteLog(type,team,{id,z,detail:type==='LINE'?`${meta.lineStructure} · ${meta.throw} · ${meta.obtention}${meta.maul?` · ${meta.maul}`:''}`:`${meta.side||''}${meta.side?' · ':''}${meta.obtention}${scrumPenaltyDetail}`,payload:{type,z,...meta},time:timeOverride||undefined});
   return id
 }
@@ -1064,7 +1074,7 @@ async function editLiteTag(id){
     const w=await runWizard(steps);let obtention=w.scrumResult;let meta={side:w.side};let committedBy=null,phase=null,detail={},consequence={label:null,score:0};
     if(w.scrumResult==='PENAL'){
       obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';committedBy=w.penaltyAgainst==='OFENSIVO'?team:other(team);phase=w.penaltyAgainst==='OFENSIVO'?'ATAQUE':'DEFENSA';
-      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy};
+      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
       if(committedBy==='URU'){const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);detail={penaltyReason:'SCRUM',penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player};consequence=consequenceFromWizard(w);if(consequence.label)meta.penaltyConsequence=consequence.label}
     }else meta.obtention=obtention;
     pushUndo();deleteLiteTagCore(row);liteSetPiece(team,'SCRUM',w.z,meta,id,row.time);if(w.scrumResult==='PENAL')liteRecordPenalty(committedBy,phase,w.z,detail,consequence,id,row.time,{infer:false,log:false});
@@ -1179,7 +1189,7 @@ async function handleLiteAction(action,team){
       obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';
       committedBy=w.penaltyAgainst==='OFENSIVO'?team:other(team);
       phase=w.penaltyAgainst==='OFENSIVO'?'ATAQUE':'DEFENSA';
-      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy};
+      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
       if(committedBy==='URU'){
         const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);
         detail={penaltyReason:'SCRUM',penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};
@@ -1503,7 +1513,7 @@ onTap('#startScrum',async()=>{
     const obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';
     const committedBy=w.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam);
     const result=committedBy==='URU'?'PENAL URU':'PENAL RIVAL';
-    const meta={side:w.side,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy};
+    const meta={side:w.side,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
     if(committedBy==='URU'){meta.penaltyJersey=w.penaltyPlayerChoice;meta.penaltyPlayer=st.roster?.[String(w.penaltyPlayerChoice)]||null}
     openSeq('SCRUM',w.z,meta);st.launches.push({team:scrumTeam,type:'SCRUM',z:w.z,...meta});
     closeSeq(result,w.z,obtention==='OBTENIDO'?'POSITIVA':'NEGATIVA');st.team=other(committedBy);save();render();return
