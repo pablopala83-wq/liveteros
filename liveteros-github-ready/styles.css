@@ -1026,3 +1026,24 @@
 .penalty-run-chip small{font-size:7px;line-height:11px;color:#788a9b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .penalty-run-separator{width:1px;height:21px;background:#d6dfe7;flex:0 0 auto}
 @media(max-width:620px){.penalty-run-chip{min-width:58px;padding-left:6px;padding-right:6px}.penalty-run-rail{gap:5px}}
+
+/* V3.9.9 · fixed 5-run discipline carousel */
+.penalty-strip{min-width:0;max-width:100%;overflow:hidden}
+.penalty-strip-head{display:flex;align-items:center;min-width:0}
+.penalty-strip-max{color:var(--uru-celeste);margin-left:auto}
+.penalty-strip-max b{color:var(--uru-celeste)}
+.penalty-carousel{display:grid;grid-template-columns:30px minmax(0,1fr) 30px;align-items:center;gap:6px;width:100%;min-width:0;margin-top:4px}
+.penalty-carousel-window{width:100%;min-width:0;overflow:hidden}
+.penalty-carousel-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;width:100%;min-width:0}
+.penalty-carousel-nav{width:30px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid #cfdbe5;border-radius:7px;background:#fff;color:#244766;font-size:20px;font-weight:900;line-height:1;cursor:pointer;padding:0}
+.penalty-carousel-nav:hover:not(:disabled){background:#f1f6fa;border-color:#9cb4c8}
+.penalty-carousel-nav:disabled{opacity:.25;cursor:default}
+.penalty-run-chip{width:100%;min-width:0;max-width:none;height:34px;padding:4px 6px 3px;border:1px solid #dce5ec;border-top-width:3px;border-radius:7px;background:#fff;box-sizing:border-box}
+.penalty-run-main{gap:3px;min-width:0}
+.penalty-run-team{font-size:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.penalty-run-main b{font-size:12px;flex:0 0 auto}
+.penalty-run-chip small{display:block;font-size:7px;line-height:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.penalty-run-placeholder{height:34px;border:1px dashed #e4ebf1;border-radius:7px;background:#fbfcfd}
+.penalty-carousel-meta{text-align:center;margin-top:3px;font-size:7px;font-weight:850;letter-spacing:.05em;color:#8191a0;min-height:9px}
+.penalty-strip-scroll,.penalty-run-rail,.penalty-run-separator{display:none!important}
+@media(max-width:620px){.penalty-carousel{grid-template-columns:28px minmax(0,1fr) 28px;gap:4px}.penalty-carousel-nav{width:28px;height:32px}.penalty-carousel-grid{gap:3px}.penalty-run-chip{height:32px;padding-left:4px;padding-right:4px}.penalty-run-placeholder{height:32px}.penalty-run-team{font-size:6.5px}.penalty-run-main b{font-size:11px}.penalty-run-chip small{font-size:6.5px}}

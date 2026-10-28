@@ -488,43 +488,92 @@ function penaltyTimelineEvents(){
     }));
   return [...closed,...standalone].sort((a,b)=>stampValue(a.time)-stampValue(b.time));
 }
-function penaltyTimelineHTML(){
-  const events=penaltyTimelineEvents();
-  if(!events.length)return '<div class="penalty-strip-empty">Sin penales registrados</div>';
+let penaltyCarouselStart=0;
+let penaltyCarouselSignature='';
+const PENALTY_CAROUSEL_SIZE=5;
 
+function penaltyRuns(){
+  const events=penaltyTimelineEvents();
   const runs=[];
   events.forEach(e=>{
     const last=runs[runs.length-1];
     if(last&&last.team===e.committedBy)last.events.push(e);
     else runs.push({team:e.committedBy,events:[e]});
   });
-  const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
+  return {events,runs};
+}
+function penaltyRunTimeLabel(run){
+  const first=run.events[0]?.time||'—';
+  const last=run.events[run.events.length-1]?.time||first;
+  return run.events.length===1?safe(first):`${safe(first)}–${safe(last)}`;
+}
+function penaltyTimelineHTML(){
+  const {events,runs}=penaltyRuns();
+  if(!events.length){
+    penaltyCarouselStart=0;
+    penaltyCarouselSignature='';
+    return '<div class="penalty-strip-empty">Sin penales registrados</div>';
+  }
 
-  const runTimeLabel=run=>{
-    const first=run.events[0]?.time||'—';
-    const last=run.events[run.events.length-1]?.time||first;
-    return run.events.length===1?safe(first):`${safe(first)}–${safe(last)}`;
-  };
+  const signature=`${events.length}|${events[events.length-1]?.time||''}|${events[events.length-1]?.committedBy||''}|${runs.length}`;
+  const lastStart=Math.max(0,runs.length-PENALTY_CAROUSEL_SIZE);
+  if(signature!==penaltyCarouselSignature){
+    penaltyCarouselSignature=signature;
+    penaltyCarouselStart=lastStart;
+  }else{
+    penaltyCarouselStart=Math.max(0,Math.min(penaltyCarouselStart,lastStart));
+  }
+
+  const visible=runs.slice(penaltyCarouselStart,penaltyCarouselStart+PENALTY_CAROUSEL_SIZE);
+  const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
+  const firstShown=penaltyCarouselStart+1;
+  const lastShown=penaltyCarouselStart+visible.length;
+  const canPrev=penaltyCarouselStart>0;
+  const canNext=penaltyCarouselStart+PENALTY_CAROUSEL_SIZE<runs.length;
 
   return `<div class="penalty-strip">
     <div class="penalty-strip-head">
       <span>SECUENCIA DE PENALES</span>
-      <span class="penalty-strip-legend"><i class="uru"></i> URU <i class="rival"></i> RIVAL</span>
       <span class="penalty-strip-max">MÁX. RACHA URU <b>${maxURU}</b></span>
     </div>
-    <div class="penalty-strip-scroll">
-      <div class="penalty-run-rail">
-        ${runs.map(run=>{
-          const isURU=run.team==='URU';
-          const count=run.events.length;
-          return `<div class="penalty-run-chip ${isURU?'uru':'rival'}" title="${safe(run.team)} · ${count} penal${count===1?'':'es'} · ${runTimeLabel(run)}">
-            <div class="penalty-run-main"><span class="penalty-run-team">${isURU?'URU':'RIVAL'}</span><b>×${count}</b></div>
-            <small>${runTimeLabel(run)}</small>
-          </div>`;
-        }).join('<span class="penalty-run-separator" aria-hidden="true"></span>')}
+    <div class="penalty-carousel" style="--rival-color:${safe(st.opponentColor||'#C8102E')}">
+      <button type="button" class="penalty-carousel-nav prev" data-penalty-page="prev" ${canPrev?'':'disabled'} aria-label="Ver rachas anteriores">‹</button>
+      <div class="penalty-carousel-window">
+        <div class="penalty-carousel-grid">
+          ${visible.map(run=>{
+            const isURU=run.team==='URU';
+            const count=run.events.length;
+            return `<div class="penalty-run-chip ${isURU?'uru':'rival'}" title="${safe(run.team)} · ${count} penal${count===1?'':'es'} · ${penaltyRunTimeLabel(run)}">
+              <div class="penalty-run-main"><span class="penalty-run-team">${isURU?'URU':'RIVAL'}</span><b>×${count}</b></div>
+              <small>${penaltyRunTimeLabel(run)}</small>
+            </div>`;
+          }).join('')}
+          ${Array.from({length:Math.max(0,PENALTY_CAROUSEL_SIZE-visible.length)},()=>'<div class="penalty-run-placeholder" aria-hidden="true"></div>').join('')}
+        </div>
       </div>
+      <button type="button" class="penalty-carousel-nav next" data-penalty-page="next" ${canNext?'':'disabled'} aria-label="Ver rachas siguientes">›</button>
     </div>
+    <div class="penalty-carousel-meta">RACHAS ${firstShown}–${lastShown} DE ${runs.length}</div>
   </div>`;
+}
+function bindPenaltyCarousel(){
+  const host=$('#disciplineCompare');
+  if(!host)return;
+  host.querySelectorAll('[data-penalty-page]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const {runs}=penaltyRuns();
+      const lastStart=Math.max(0,runs.length-PENALTY_CAROUSEL_SIZE);
+      if(btn.dataset.penaltyPage==='prev') penaltyCarouselStart=Math.max(0,penaltyCarouselStart-PENALTY_CAROUSEL_SIZE);
+      else penaltyCarouselStart=Math.min(lastStart,penaltyCarouselStart+PENALTY_CAROUSEL_SIZE);
+      const pm=penaltyMatrix();
+      const rival=st.opponent||'RIVAL';
+      host.innerHTML=`<div class="discipline-grid">
+        <div class="discipline-team"><div class="discipline-name">URU</div><div class="discipline-box"><b>${pm.URU.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.URU.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.URU.attack+pm.URU.defense}</b><span>TOTAL</span></div></div>
+        <div class="discipline-team rival" style="--team-color:${safe(st.opponentColor)}"><div class="discipline-name">${safe(rival)}</div><div class="discipline-box"><b>${pm.RIVAL.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.RIVAL.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.RIVAL.attack+pm.RIVAL.defense}</b><span>TOTAL</span></div></div>
+      </div>${penaltyTimelineHTML()}`;
+      bindPenaltyCarousel();
+    });
+  });
 }
 
 function breakEvents(team){
@@ -949,6 +998,7 @@ function renderDashboard(){
     <div class="discipline-team"><div class="discipline-name">URU</div><div class="discipline-box"><b>${pm.URU.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.URU.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.URU.attack+pm.URU.defense}</b><span>TOTAL</span></div></div>
     <div class="discipline-team rival" style="--team-color:${safe(st.opponentColor)}"><div class="discipline-name">${safe(rival)}</div><div class="discipline-box"><b>${pm.RIVAL.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.RIVAL.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.RIVAL.attack+pm.RIVAL.defense}</b><span>TOTAL</span></div></div>
   </div>${penaltyTimelineHTML()}`;
+  bindPenaltyCarousel();
 
   $('#breakMaps').innerHTML=breakMapHTML();
   $('#generalPenaltyList').innerHTML=penaltyDetailHTML();
