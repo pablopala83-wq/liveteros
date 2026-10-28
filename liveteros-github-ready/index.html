@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Teros Live" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/teros-shield.png" />
-  <link rel="stylesheet" href="styles.css?v=393" />
+  <link rel="stylesheet" href="styles.css?v=394" />
   <title>Los Teros Live</title>
 </head>
 <body>
@@ -77,7 +77,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.3 · SCRUM DASHBOARD CACHE FIX</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.5 · DISCIPLINE + MATCH EDIT</div>
         </div>
       </div>
 
@@ -89,7 +89,7 @@
         <span id="awayCode" class="score-team">RIVAL</span>
       </div>
 
-      <div class="header-actions"><button type="button" id="backToMatches" class="back-matches">PARTIDOS</button><button type="button" id="accessBtn" class="back-matches">ACCESO</button><div class="tabs main-tabs" role="tablist" aria-label="Vista principal">
+      <div class="header-actions"><button type="button" id="backToMatches" class="back-matches">PARTIDOS</button><button type="button" id="editMatchBtn" class="back-matches">EDITAR PARTIDO</button><button type="button" id="accessBtn" class="back-matches">ACCESO</button><div class="tabs main-tabs" role="tablist" aria-label="Vista principal">
         <button type="button" class="tab active" data-main="tag" role="tab" aria-selected="true">TAGGING</button>
         <button type="button" class="tab" data-main="dash" role="tab" aria-selected="false">DASHBOARD</button>
       </div></div>
@@ -300,6 +300,32 @@
       </section>
     </section>
   </main>
+
+  <section id="editMatchModal" class="edit-match-modal hidden" aria-hidden="true">
+    <div class="edit-match-card">
+      <div class="manager-brand">
+        <img src="assets/teros-shield.png" alt=""/>
+        <div><div class="manager-title">EDITAR PARTIDO</div><div class="manager-sub">NOMBRE Y COLOR DEL RIVAL</div></div>
+        <button type="button" id="closeEditMatch" class="small-btn ghost" style="margin-left:auto">CERRAR</button>
+      </div>
+      <form id="editMatchForm">
+        <label class="field-label" for="editOpponentName">Nombre del rival</label>
+        <input id="editOpponentName" class="text-input" maxlength="24" required />
+        <label class="field-label">Color del rival</label>
+        <div class="color-row edit-color-row">
+          <button type="button" class="edit-color-swatch" data-edit-color="#C8102E" style="--sw:#C8102E" aria-label="Rojo"></button>
+          <button type="button" class="edit-color-swatch" data-edit-color="#0B1F3A" style="--sw:#0B1F3A" aria-label="Azul oscuro"></button>
+          <button type="button" class="edit-color-swatch" data-edit-color="#111111" style="--sw:#111111" aria-label="Negro"></button>
+          <button type="button" class="edit-color-swatch" data-edit-color="#1D7A3A" style="--sw:#1D7A3A" aria-label="Verde"></button>
+          <button type="button" class="edit-color-swatch" data-edit-color="#F2C300" style="--sw:#F2C300" aria-label="Amarillo"></button>
+          <input id="editOpponentColor" type="color" value="#C8102E" aria-label="Elegir otro color" />
+        </div>
+        <div class="field-help">Esto sólo cambia cómo se identifica al rival. No modifica etiquetas, score, secuencias ni estadísticas ya cargadas.</div>
+        <button class="manager-primary" type="submit">GUARDAR CAMBIOS</button>
+        <div id="editMatchStatus" class="muted" style="margin-top:10px"></div>
+      </form>
+    </div>
+  </section>
   <section id="accessModal" class="match-manager hidden" style="z-index:50">
     <div class="manager-card" style="max-width:980px">
       <div class="manager-brand"><img src="assets/teros-shield.png" alt=""/><div><div class="manager-title">ACCESO AL PARTIDO</div><div class="manager-sub">UN ETIQUETADOR · VIEWERS POR LINK</div></div><button type="button" id="closeAccess" class="small-btn ghost" style="margin-left:auto">CERRAR</button></div>
@@ -336,6 +362,6 @@
     </div>
   </section>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=393"></script>
+  <script src="app.js?v=395"></script>
 </body>
 </html>

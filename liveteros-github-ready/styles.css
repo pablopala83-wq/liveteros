@@ -961,3 +961,37 @@
 @media(max-width:760px){.lite-log-row{grid-template-columns:56px 68px minmax(0,1fr) auto;gap:6px}.lite-log-edit{padding:0 6px;font-size:9px}.lite-log-delete{width:28px}}
 
 .choice.flow-back-choice{border-style:dashed;background:#f7fafc;color:#526579;font-size:11px}.choice.flow-back-choice:hover{background:#eef4f8}
+
+/* V3.9.4 · discipline penalty timeline */
+.penalty-timeline-card{margin-top:10px;border:1px solid #dfe7ee;border-radius:11px;background:#fff;padding:10px 12px;min-width:0}
+.penalty-timeline-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.penalty-timeline-title{font-size:11px;font-weight:950;letter-spacing:.07em;color:#29445f}
+.penalty-timeline-sub{font-size:9px;color:#7a8b9d;margin-top:2px}
+.penalty-max-streak{display:flex;align-items:center;gap:8px;border-radius:8px;background:var(--red-soft);padding:5px 9px;color:#b52938;white-space:nowrap}
+.penalty-max-streak span{font-size:8px;font-weight:950;letter-spacing:.06em}
+.penalty-max-streak strong{font-size:20px;line-height:1}
+.penalty-timeline-scroll{overflow-x:auto;padding:3px 1px 5px}
+.penalty-timeline-rail{display:flex;align-items:center;gap:7px;min-width:max-content}
+.penalty-run{border-radius:9px;padding:6px 8px;border:1px solid #dfe6ec;background:#fafcfd;min-width:70px}
+.penalty-run.uru{border-color:#f3bcc2;background:var(--red-soft)}
+.penalty-run.rival{border-color:#bde4c6;background:var(--green-soft)}
+.penalty-run.multi.uru{box-shadow:inset 0 0 0 1px rgba(239,75,90,.14)}
+.penalty-run-head{display:flex;align-items:baseline;justify-content:space-between;gap:7px;margin-bottom:5px}
+.penalty-run-head b{font-size:9px;font-weight:950;letter-spacing:.045em;white-space:nowrap}
+.penalty-run.uru .penalty-run-head b{color:#bd2e3d}
+.penalty-run.rival .penalty-run-head b{color:#16823a}
+.penalty-run-head small{font-size:8px;color:#718294;white-space:nowrap}
+.penalty-run-events{display:flex;align-items:flex-start}
+.penalty-event{display:grid;grid-template-columns:auto auto;grid-template-rows:13px auto;align-items:center;column-gap:3px;min-width:48px;position:relative}
+.penalty-event .penalty-dot{width:11px;height:11px;border-radius:50%;display:block;grid-column:1;grid-row:1;z-index:1}
+.penalty-run.uru .penalty-dot{background:var(--red)}
+.penalty-run.rival .penalty-dot{background:var(--green)}
+.penalty-event i{height:2px;width:30px;background:#c7d0d9;display:block;grid-column:2;grid-row:1}
+.penalty-event small{grid-column:1/3;grid-row:2;font-size:8px;color:#617386;margin-top:2px;white-space:nowrap}
+.penalty-run-connector{font-size:15px;color:#93a2b0;font-weight:950}
+.penalty-timeline-empty{margin-top:8px;padding:10px;border:1px dashed #d8e1e9;border-radius:8px;color:#8393a3;font-size:11px;text-align:center}
+@media(max-width:620px){.penalty-timeline-top{align-items:flex-start}.penalty-timeline-sub{max-width:190px}.penalty-max-streak{gap:5px}.penalty-run{padding:6px}.penalty-run-head{display:block}.penalty-run-head small{display:block;margin-top:2px}}
+
+
+/* V3.9.5 · Editar identidad del partido */
+.edit-match-modal{position:fixed;inset:0;z-index:80;background:rgba(3,23,56,.58);display:flex;align-items:center;justify-content:center;padding:20px}.edit-match-modal.hidden{display:none}.edit-match-card{width:min(560px,100%);background:#fff;border-radius:18px;box-shadow:0 28px 90px rgba(0,20,50,.38);padding:22px;border:1px solid rgba(255,255,255,.8)}.edit-color-swatch{width:46px;height:46px;border-radius:999px;border:3px solid #fff;background:var(--sw);box-shadow:0 0 0 1px #b6c6d6;cursor:pointer}.edit-color-swatch.selected{box-shadow:0 0 0 3px #168be8}.saved-match-edit{min-height:40px;border-radius:8px;padding:0 12px;font-weight:900;cursor:pointer;border:1px solid #9fb8d0;background:#f5f9fd;color:#274b70}@media(max-width:600px){.edit-match-modal{padding:10px}.edit-match-card{padding:16px}.saved-match-actions{gap:5px}.saved-match-open,.saved-match-edit,.match-delete{padding:0 9px}}

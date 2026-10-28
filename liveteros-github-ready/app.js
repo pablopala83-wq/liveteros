@@ -7,7 +7,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSe
 const other=t=>t==='URU'?'RIVAL':'URU';
 const safe=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const defaultState=(opponent='RIVAL',color='#C8102E')=>({opponent,opponentColor:color,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),team:'URU',sequence:null,closed:[],launches:[],entries:{URU:0,RIVAL:0},breaks:{URU:0,RIVAL:0},valuation:{URU:{POSITIVA:0,NEGATIVA:0},RIVAL:{POSITIVA:0,NEGATIVA:0}},penalties:{attackURU:0,defenseURU:0},penaltyReasons:{attackURU:{},defenseURU:{}},penaltyJerseys:{},penaltyEvents:[],roster:{},pointsOrigin:{URU:{},RIVAL:{}},score:{URU:0,RIVAL:0},scoreEvents:[],playerEvents:[],liteEntries:[],liteBreaks:[],liteLog:[],period:'1T',seconds:0,running:false});
-let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', tagMode=localStorage.getItem(TAG_MODE)||'FULL', currentRole='viewer', canTagCurrent=false, assignedTagger=null, channel=null, publicPoll=null, publicViewToken=null, currentViewerLink='', syncTimer=null, saving=false, dirty=false, undoStack=[];
+let user=null, activeId=localStorage.getItem(ACTIVE)||null, st=null, timer=null, selectedColor='#C8102E', editingMatchId=null, editingColor='#C8102E', tagMode=localStorage.getItem(TAG_MODE)||'FULL', currentRole='viewer', canTagCurrent=false, assignedTagger=null, channel=null, publicPoll=null, publicViewToken=null, currentViewerLink='', syncTimer=null, saving=false, dirty=false, undoStack=[];
 function cacheAll(){try{return JSON.parse(localStorage.getItem(CACHE)||'{}')}catch{return {}}}
 function cacheMatch(id,state,meta={}){const c=cacheAll();c[id]={state:{...state,running:false},meta};localStorage.setItem(CACHE,JSON.stringify(c))}
 function getCached(id){return cacheAll()[id]||null}
@@ -469,6 +469,65 @@ function penaltyMatrix(){
   (st.penaltyEvents||[]).forEach(x=>add(x.result,x.previousTeam));
   return m
 }
+
+function penaltyTimelineEvents(){
+  const closed=(st.closed||[])
+    .filter(x=>x.result==='PENAL URU'||x.result==='PENAL RIVAL')
+    .map(x=>({
+      time:x.end||x.start||'—',
+      committedBy:x.result==='PENAL URU'?'URU':'RIVAL',
+      source:'SECUENCIA'
+    }));
+  const standalone=(st.penaltyEvents||[])
+    .filter(x=>x.result==='PENAL URU'||x.result==='PENAL RIVAL')
+    .map(x=>({
+      time:x.end||x.start||'—',
+      committedBy:x.result==='PENAL URU'?'URU':'RIVAL',
+      source:'LITE'
+    }));
+  return [...closed,...standalone].sort((a,b)=>stampValue(a.time)-stampValue(b.time));
+}
+function penaltyTimelineHTML(){
+  const events=penaltyTimelineEvents();
+  if(!events.length)return '<div class="penalty-timeline-empty">Sin penales registrados</div>';
+
+  const runs=[];
+  events.forEach(e=>{
+    const last=runs[runs.length-1];
+    if(last&&last.team===e.committedBy)last.events.push(e);
+    else runs.push({team:e.committedBy,events:[e]});
+  });
+  const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
+  const rival=(st.opponent||'RIVAL').toUpperCase();
+
+  return `<div class="penalty-timeline-card">
+    <div class="penalty-timeline-top">
+      <div>
+        <div class="penalty-timeline-title">SECUENCIA DE PENALES</div>
+        <div class="penalty-timeline-sub">Orden cronológico · rojo = penal URU · verde = penal rival</div>
+      </div>
+      <div class="penalty-max-streak"><span>MÁX. RACHA URU</span><strong>${maxURU}</strong></div>
+    </div>
+    <div class="penalty-timeline-scroll">
+      <div class="penalty-timeline-rail">
+        ${runs.map((run,i)=>{
+          const isURU=run.team==='URU';
+          const prev=runs[i-1];
+          const count=run.events.length;
+          const label=isURU?'URU':rival;
+          const streak=count>=2?`${count} SEGUIDOS`:label;
+          const afterURU=!isURU&&prev?.team==='URU'&&prev.events.length?`después de ${prev.events.length} URU`:'';
+          return `<div class="penalty-run ${isURU?'uru':'rival'} ${count>=2?'multi':''}">
+            <div class="penalty-run-head"><b>${safe(streak)}</b>${afterURU?`<small>${safe(afterURU)}</small>`:''}</div>
+            <div class="penalty-run-events">
+              ${run.events.map((e,idx)=>`<div class="penalty-event"><span class="penalty-dot"></span><small>${safe(e.time)}</small>${idx<run.events.length-1?'<i></i>':''}</div>`).join('')}
+            </div>
+          </div>${i<runs.length-1?'<div class="penalty-run-connector">→</div>':''}`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
 function breakEvents(team){
   const out=[];
   (st.closed||[]).forEach(seq=>(seq.events||[]).filter(e=>e.type==='QUIEBRE').forEach(e=>{if((e.team||seq.team)===team)out.push(e)}));
@@ -886,7 +945,7 @@ function renderDashboard(){
   $('#disciplineCompare').innerHTML=`<div class="discipline-grid">
     <div class="discipline-team"><div class="discipline-name">URU</div><div class="discipline-box"><b>${pm.URU.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.URU.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.URU.attack+pm.URU.defense}</b><span>TOTAL</span></div></div>
     <div class="discipline-team rival" style="--team-color:${safe(st.opponentColor)}"><div class="discipline-name">${safe(rival)}</div><div class="discipline-box"><b>${pm.RIVAL.attack}</b><span>ATAQUE</span></div><div class="discipline-box"><b>${pm.RIVAL.defense}</b><span>DEFENSA</span></div><div class="discipline-box total"><b>${pm.RIVAL.attack+pm.RIVAL.defense}</b><span>TOTAL</span></div></div>
-  </div>`;
+  </div>${penaltyTimelineHTML()}`;
 
   $('#breakMaps').innerHTML=breakMapHTML();
   $('#generalPenaltyList').innerHTML=penaltyDetailHTML();
@@ -1229,7 +1288,7 @@ async function handleLiteAction(action,team){
   }
 }
 function originMetaHTML(s){if(!s)return '<span>Elegí un origen para iniciar la secuencia.</span>';const items=[];if(s.origin==='LINE')items.push(['CONFIG.',lineStructureLabel(s.meta)],['DÓNDE TIRAMOS',lineThrowLabel(s.meta.throw)],['OBTENCIÓN',s.meta.obtention||'—'],['MAUL',s.meta.maul||'—'],['ZONA INICIO',s.zStart]);else if(s.origin==='SCRUM')items.push(['UBICACIÓN',s.meta.side||'—'],['OBTENCIÓN',s.meta.obtention||'—'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='RECEPCIÓN KICK')items.push(['ORIGEN','RECEPCIÓN'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TURNOVER')items.push(['ORIGEN','TURNOVER'],['ZONA',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TAP PENAL')items.push(['ORIGEN','TAP PENAL'],['ZONA',zoneName(s.zStart)],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='FREE KICK')items.push(['ORIGEN','FREE KICK'],['ZONA',s.zStart],['A FAVOR',teamLabel(s.team)]);return items.map(([l,v])=>`<div class="origin-meta-item"><div class="origin-meta-label">${safe(l)}</div><div class="origin-meta-value">${safe(v)}</div></div>`).join('')}
-function applyRoleUI(){document.body.classList.toggle('viewer-mode',!canTagCurrent);document.body.classList.toggle('public-view',!!publicViewToken);let badge='SOLO DASHBOARD';if(publicViewToken)badge='MODO ENTRENADOR · EN VIVO';else if(canTagCurrent&&currentRole==='admin')badge='ADMIN · ETIQUETADOR';else if(canTagCurrent)badge='ETIQUETADOR ASIGNADO';else if(currentRole==='admin')badge='ADMIN · SOLO DASHBOARD';else if(currentRole==='editor')badge='ANALISTA · NO ASIGNADO';$('#roleBadge').textContent=badge;$('#accessBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#backToMatches').style.display=publicViewToken?'none':'';if(!canTagCurrent){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')}}
+function applyRoleUI(){document.body.classList.toggle('viewer-mode',!canTagCurrent);document.body.classList.toggle('public-view',!!publicViewToken);let badge='SOLO DASHBOARD';if(publicViewToken)badge='MODO ENTRENADOR · EN VIVO';else if(canTagCurrent&&currentRole==='admin')badge='ADMIN · ETIQUETADOR';else if(canTagCurrent)badge='ETIQUETADOR ASIGNADO';else if(currentRole==='admin')badge='ADMIN · SOLO DASHBOARD';else if(currentRole==='editor')badge='ANALISTA · NO ASIGNADO';$('#roleBadge').textContent=badge;$('#accessBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#editMatchBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#backToMatches').style.display=publicViewToken?'none':'';if(!canTagCurrent){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')}}
 function toggleClosedValuation(index){
   if(!canTagCurrent)return;
   const seq=st.closed?.[index];
@@ -1377,9 +1436,13 @@ function csv(){const rows=[['team','origin','zStart','start','end','result','zEn
 function onTap(sel,fn){$(sel).addEventListener('click',async e=>{if(!canTagCurrent)return;if(sel!=='#undoAction'&&sel!=='#voiceTagBtn')pushUndo();flashButton(e.currentTarget);await fn(e.currentTarget)})}
 async function roleForMatch(id){const {data,error}=await sb.from('match_users').select('role').eq('match_id',id).eq('user_id',user.id).maybeSingle();if(error)console.warn(error);return data?.role||'viewer'}
 function unsubscribe(){if(channel){sb.removeChannel(channel);channel=null}if(publicPoll){clearInterval(publicPoll);publicPoll=null}}
-function subscribeMatch(id){unsubscribe();channel=sb.channel(`match:${id}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'matches',filter:`id=eq.${id}`},payload=>{const ns=payload.new?.live_state;if(!ns||!st)return;const incoming=Date.parse(ns.updatedAt||0),local=Date.parse(st.updatedAt||0);if(incoming>local||!canTagCurrent){st={...defaultState(payload.new.opponent_name,payload.new.opponent_color),...ns,opponent:payload.new.opponent_name,opponentColor:payload.new.opponent_color,running:false};cacheMatch(id,st,{role:currentRole,canTag:canTagCurrent,assignedTagger});render();setSync('ACTUALIZADO EN VIVO','ok')}}).subscribe()}
+function subscribeMatch(id){unsubscribe();channel=sb.channel(`match:${id}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'matches',filter:`id=eq.${id}`},payload=>{if(!st)return;const nextName=payload.new?.opponent_name||st.opponent,nextColor=payload.new?.opponent_color||st.opponentColor;const identityChanged=nextName!==st.opponent||nextColor!==st.opponentColor;if(identityChanged){st.opponent=nextName;st.opponentColor=nextColor;cacheMatch(id,st,{role:currentRole,canTag:canTagCurrent,assignedTagger});render()}const ns=payload.new?.live_state;if(!ns)return;const incoming=Date.parse(ns.updatedAt||0),local=Date.parse(st.updatedAt||0);if(incoming>local||!canTagCurrent){st={...defaultState(nextName,nextColor),...ns,opponent:nextName,opponentColor:nextColor,running:false};cacheMatch(id,st,{role:currentRole,canTag:canTagCurrent,assignedTagger});render();setSync('ACTUALIZADO EN VIVO','ok')}}).subscribe()}
 async function openManager(){stopTimer();unsubscribe();activeId=null;localStorage.removeItem(ACTIVE);$('#matchManager').classList.remove('hidden');$('.app-shell').classList.add('manager-open');await renderMatches()}
-async function renderMatches(){const box=$('#savedMatches');box.innerHTML='<div class="no-matches">Cargando partidos…</div>';let rows=[];if(navigator.onLine){const {data,error}=await sb.from('matches').select('id,opponent_name,opponent_color,status,updated_at,live_state').order('updated_at',{ascending:false});if(!error&&data)rows=data;else console.warn(error)}if(!rows.length){const c=cacheAll();rows=Object.entries(c).map(([id,v])=>({id,opponent_name:v.meta?.opponent||v.state?.opponent||'RIVAL',opponent_color:v.meta?.opponentColor||v.state?.opponentColor||'#C8102E',updated_at:v.state?.updatedAt,live_state:v.state,_offline:true}))}box.innerHTML=rows.length?rows.map(g=>`<div class="saved-match" style="--match-color:${safe(g.opponent_color||'#C8102E')}"><div class="saved-match-color"></div><div><div class="saved-match-title">URU vs ${safe(g.opponent_name||'RIVAL')}</div><div class="saved-match-meta">${g.live_state?.closed?.length||0} secuencias · ${safe(g.live_state?.period||'1T')} ${fmtSeconds(g.live_state?.seconds||0)}${g._offline?' · OFFLINE':''}</div></div><div class="saved-match-actions"><button type="button" class="saved-match-open" data-open="${safe(g.id)}">ABRIR</button><button type="button" class="small-btn danger match-delete" data-delete="${safe(g.id)}" data-name="${safe(g.opponent_name||'RIVAL')}">ELIMINAR</button></div></div>`).join(''):'<div class="no-matches">Todavía no hay partidos disponibles.</div>';box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openGame(b.dataset.open));box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteMatch(b.dataset.delete,b.dataset.name))}
+async function renderMatches(){const box=$('#savedMatches');box.innerHTML='<div class="no-matches">Cargando partidos…</div>';let rows=[],roleMap={};if(navigator.onLine){const {data,error}=await sb.from('matches').select('id,opponent_name,opponent_color,status,updated_at,live_state').order('updated_at',{ascending:false});if(!error&&data)rows=data;else console.warn(error);if(user){const {data:members}=await sb.from('match_users').select('match_id,role').eq('user_id',user.id);(members||[]).forEach(m=>roleMap[m.match_id]=m.role)}}if(!rows.length){const c=cacheAll();rows=Object.entries(c).map(([id,v])=>({id,opponent_name:v.meta?.opponent||v.state?.opponent||'RIVAL',opponent_color:v.meta?.opponentColor||v.state?.opponentColor||'#C8102E',updated_at:v.state?.updatedAt,live_state:v.state,_offline:true}));rows.forEach(g=>roleMap[g.id]=c[g.id]?.meta?.role||'viewer')}box.innerHTML=rows.length?rows.map(g=>`<div class="saved-match" style="--match-color:${safe(g.opponent_color||'#C8102E')}"><div class="saved-match-color"></div><div><div class="saved-match-title">URU vs ${safe(g.opponent_name||'RIVAL')}</div><div class="saved-match-meta">${g.live_state?.closed?.length||0} secuencias · ${safe(g.live_state?.period||'1T')} ${fmtSeconds(g.live_state?.seconds||0)}${g._offline?' · OFFLINE':''}</div></div><div class="saved-match-actions"><button type="button" class="saved-match-open" data-open="${safe(g.id)}">ABRIR</button>${roleMap[g.id]==='admin'&&!g._offline?`<button type="button" class="saved-match-edit" data-edit="${safe(g.id)}" data-name="${safe(g.opponent_name||'RIVAL')}" data-color="${safe(g.opponent_color||'#C8102E')}">EDITAR</button>`:''}<button type="button" class="small-btn danger match-delete" data-delete="${safe(g.id)}" data-name="${safe(g.opponent_name||'RIVAL')}">ELIMINAR</button></div></div>`).join(''):'<div class="no-matches">Todavía no hay partidos disponibles.</div>';box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openGame(b.dataset.open));box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openMatchEditor(b.dataset.edit,b.dataset.name,b.dataset.color));box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteMatch(b.dataset.delete,b.dataset.name))}
+function setEditColor(color){editingColor=String(color||'#C8102E').toUpperCase();$('#editOpponentColor').value=editingColor;$$('.edit-color-swatch').forEach(x=>x.classList.toggle('selected',x.dataset.editColor.toUpperCase()===editingColor))}
+function openMatchEditor(id,name,color){if(!id)return;editingMatchId=id;$('#editOpponentName').value=name||'RIVAL';$('#editMatchStatus').textContent='';setEditColor(color||'#C8102E');$('#editMatchModal').classList.remove('hidden');$('#editMatchModal').setAttribute('aria-hidden','false');setTimeout(()=>$('#editOpponentName').focus(),0)}
+function closeMatchEditor(){editingMatchId=null;$('#editMatchModal').classList.add('hidden');$('#editMatchModal').setAttribute('aria-hidden','true');$('#editMatchStatus').textContent=''}
+async function saveMatchDetails(){if(!editingMatchId)return;if(!navigator.onLine){$('#editMatchStatus').textContent='Necesitás conexión para editar el partido.';return}const name=$('#editOpponentName').value.trim();if(!name){$('#editMatchStatus').textContent='Ingresá el nombre del rival.';return}const status=$('#editMatchStatus');status.textContent='Guardando…';const {data,error}=await sb.rpc('update_match_details',{p_match_id:editingMatchId,p_opponent_name:name,p_opponent_color:editingColor});if(error){status.textContent='No pude guardar: '+error.message;return}const editedId=editingMatchId;if(activeId===editedId&&st){st.opponent=data?.opponent_name||name;st.opponentColor=data?.opponent_color||editingColor;cacheMatch(activeId,st,{role:currentRole,canTag:canTagCurrent,assignedTagger});render()}closeMatchEditor();if(!$('#matchManager').classList.contains('hidden'))await renderMatches()}
 async function deleteMatch(id,name){
   if(!navigator.onLine){alert('Para eliminar definitivamente un partido necesitás conexión.');return}
   if(!confirm(`¿Eliminar definitivamente URU vs ${name}? Esta acción no se puede deshacer.`))return;
@@ -1397,8 +1460,7 @@ async function createViewerLink(){const status=$('#viewerLinkStatus');status.tex
 async function disableViewerLink(){if(!confirm('¿Desactivar el link de dashboard de este partido?'))return;const {error}=await sb.rpc('disable_match_view_link',{p_match_id:activeId});if(error){$('#viewerLinkStatus').textContent=error.message;return}currentViewerLink='';$('#viewerLinkInput').value='';$('#viewerLinkBox').classList.add('hidden');$('#viewerLinkStatus').textContent='Link desactivado.'}
 async function copyViewerLink(){if(!currentViewerLink)return;try{await navigator.clipboard.writeText(currentViewerLink);$('#viewerLinkStatus').textContent='Link copiado.'}catch{$('#viewerLinkInput').select();document.execCommand('copy');$('#viewerLinkStatus').textContent='Link copiado.'}}
 async function fetchPublicMatch(token){const {data,error}=await sb.rpc('get_public_match',{p_token:token});if(error)throw error;if(!data)throw new Error('LINK_INVALIDO');return data}
-async function openPublicView(token){unsubscribe();publicViewToken=token;user=null;currentRole='viewer';canTagCurrent=false;assignedTagger=null;localStorage.removeItem(ACTIVE);try{const row=await fetchPublicMatch(token);activeId=row.id;st={...defaultState(row.opponent_name,row.opponent_color),...(row.live_state||{}),opponent:row.opponent_name,opponentColor:row.opponent_color,running:false};$('#authScreen').classList.add('hidden');$('#matchManager').classList.add('hidden');$('.app-shell').classList.remove('manager-open');render();setSync('DASHBOARD EN VIVO','ok');publicPoll=setInterval(async()=>{try{const fresh=await fetchPublicMatch(token);const ns=fresh.live_state;if(!ns)return;const incoming=Date.parse(ns.updatedAt||fresh.updated_at||0),local=Date.parse(st?.updatedAt||0);if(incoming>local){st={...defaultState(fresh.opponent_name,fresh.opponent_color),...ns,opponent:fresh.opponent_name,opponentColor:fresh.opponent_color,running:false};render();setSync('ACTUALIZADO EN VIVO','ok')}}catch(e){console.warn(e)}},2000)}catch(e){$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden');$('.app-shell').classList.add('manager-open');$('#authMessage').textContent='Este link de dashboard no es válido o fue desactivado.'}}
-
+async function openPublicView(token){unsubscribe();publicViewToken=token;user=null;currentRole='viewer';canTagCurrent=false;assignedTagger=null;localStorage.removeItem(ACTIVE);try{const row=await fetchPublicMatch(token);activeId=row.id;st={...defaultState(row.opponent_name,row.opponent_color),...(row.live_state||{}),opponent:row.opponent_name,opponentColor:row.opponent_color,running:false};$('#authScreen').classList.add('hidden');$('#matchManager').classList.add('hidden');$('.app-shell').classList.remove('manager-open');render();setSync('DASHBOARD EN VIVO','ok');publicPoll=setInterval(async()=>{try{const fresh=await fetchPublicMatch(token);const nextName=fresh.opponent_name||st.opponent,nextColor=fresh.opponent_color||st.opponentColor;const identityChanged=nextName!==st.opponent||nextColor!==st.opponentColor;const ns=fresh.live_state;if(ns){const incoming=Date.parse(ns.updatedAt||fresh.updated_at||0),local=Date.parse(st?.updatedAt||0);if(incoming>local){st={...defaultState(nextName,nextColor),...ns,opponent:nextName,opponentColor:nextColor,running:false};render();setSync('ACTUALIZADO EN VIVO','ok');return}}if(identityChanged){st.opponent=nextName;st.opponentColor=nextColor;render();setSync('ACTUALIZADO EN VIVO','ok')}}catch(e){console.warn(e)}},2000)}catch(e){$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden');$('.app-shell').classList.add('manager-open');$('#authMessage').textContent='Este link de dashboard no es válido o fue desactivado.'}}
 
 function demoState(){
   const d=defaultState('ENG','#C8102E');
@@ -1483,8 +1545,8 @@ $('#signUpBtn').addEventListener('click',async()=>{const email=$('#authEmail').v
 $('#signOutBtn').addEventListener('click',async()=>{stopTimer();unsubscribe();await sb.auth.signOut();user=null;activeId=null;$('#matchManager').classList.add('hidden');$('#authScreen').classList.remove('hidden')});
 $('#newMatchForm').addEventListener('submit',async e=>{e.preventDefault();const name=$('#opponentName').value.trim();if(!name)return;const roster=parseRoster($('#rosterInput').value);await createMatch(name,selectedColor,roster);$('#opponentName').value='';$('#rosterInput').value=''});
 $('#createDemoMatch').onclick=createDemoMatch;
-$$('.color-swatch').forEach(b=>b.onclick=()=>{selectedColor=b.dataset.color;$('#opponentColor').value=selectedColor;$$('.color-swatch').forEach(x=>x.classList.toggle('selected',x===b))});$('#opponentColor').oninput=e=>{selectedColor=e.target.value;$$('.color-swatch').forEach(x=>x.classList.remove('selected'))};
-$('#backToMatches').onclick=openManager;$('#accessBtn').onclick=showAccess;$('#closeAccess').onclick=()=>$('#accessModal').classList.add('hidden');$('#taggerForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('#taggerEmail').value.trim();if(!email)return;await assignTagger(email)});$('#generateViewerLink').onclick=createViewerLink;$('#copyViewerLink').onclick=copyViewerLink;$('#disableViewerLink').onclick=disableViewerLink;
+$$('.color-swatch').forEach(b=>b.onclick=()=>{selectedColor=b.dataset.color;$('#opponentColor').value=selectedColor;$$('.color-swatch').forEach(x=>x.classList.toggle('selected',x===b))});$('#opponentColor').oninput=e=>{selectedColor=e.target.value;$$('.color-swatch').forEach(x=>x.classList.remove('selected'))};$$('.edit-color-swatch').forEach(b=>b.onclick=()=>setEditColor(b.dataset.editColor));$('#editOpponentColor').oninput=e=>{editingColor=e.target.value.toUpperCase();$$('.edit-color-swatch').forEach(x=>x.classList.remove('selected'))};$('#editMatchForm').addEventListener('submit',async e=>{e.preventDefault();await saveMatchDetails()});$('#closeEditMatch').onclick=closeMatchEditor;$('#editMatchModal').addEventListener('click',e=>{if(e.target===$('#editMatchModal'))closeMatchEditor()});
+$('#backToMatches').onclick=openManager;$('#editMatchBtn').onclick=()=>{if(activeId&&st)openMatchEditor(activeId,st.opponent,st.opponentColor)};$('#accessBtn').onclick=showAccess;$('#closeAccess').onclick=()=>$('#accessModal').classList.add('hidden');$('#taggerForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('#taggerEmail').value.trim();if(!email)return;await assignTagger(email)});$('#generateViewerLink').onclick=createViewerLink;$('#copyViewerLink').onclick=copyViewerLink;$('#disableViewerLink').onclick=disableViewerLink;
 $('#startClock').onclick=startTimer;$('#endClock').onclick=stopTimer;$('#adjustClock').onclick=()=>{if(!canTagCurrent)return;pushUndo();const raw=prompt('Tiempo actual (mm:ss)');if(!raw)return;const p=raw.split(':');st.seconds=(parseInt(p[0]||'0',10)*60)+parseInt(p[1]||'0',10);render();save()};$('#period1').onclick=()=>{if(!canTagCurrent)return;pushUndo();stopTimer();st.period='1T';st.seconds=0;render();save()};$('#period2').onclick=()=>{if(!canTagCurrent)return;pushUndo();stopTimer();st.period='2T';st.seconds=0;render();save()};$('#manualPossession').onclick=()=>{if(!canTagCurrent)return;pushUndo();st.team=other(st.team);render();save()};
 onTap('#startPenalty',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
@@ -1923,6 +1985,6 @@ $$('[data-lite]').forEach(b=>b.onclick=()=>{activeLiteButton=b;handleLiteAction(
 $$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{if(publicViewToken)return;user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=393').then(r=>r.update()).catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=395').then(r=>r.update()).catch(()=>{});
 boot();
 })();
