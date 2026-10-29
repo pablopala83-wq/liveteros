@@ -987,18 +987,23 @@ function renderDashboard(){
   $('#dashView').style.setProperty('--opponent-color',st.opponentColor||'#222222');
   const uEntry=entryStats('URU'),rEntry=entryStats('RIVAL');
 
+  const uIneffective=Math.max(0,uEntry.resolved-uEntry.positive);
+  const rivalConceded=rEntry.positive;
+  const uruDefended=Math.max(0,rEntry.resolved-rivalConceded);
+  const uruDefensePct=rEntry.resolved?Math.round((uruDefended/rEntry.resolved)*100):null;
+
   $('#entry22Compare').innerHTML=`<div class="team-compare">
     <div class="team-stat uru">
-      <div class="team-stat-name">URU</div>
+      <div class="team-stat-name">URU EN 22 RIVAL</div>
       <div class="team-stat-main">${uEntry.total}</div>
       <div class="team-stat-caption">entradas</div>
-      <div class="team-stat-rate">${uEntry.pct===null?'—':uEntry.pct+'%'} <small>efectividad · ${uEntry.positive}/${uEntry.resolved} resueltas${uEntry.pending?` · ${uEntry.pending} abierta${uEntry.pending>1?'s':''}`:''}</small></div>
+      <div class="team-stat-rate">${uEntry.pct===null?'—':uEntry.pct+'%'} <small>efectividad · ${uEntry.positive} efectiva${uEntry.positive===1?'':'s'} · ${uIneffective} no efectiva${uIneffective===1?'':'s'}${uEntry.pending?` · ${uEntry.pending} abierta${uEntry.pending>1?'s':''}`:''}</small></div>
     </div>
     <div class="team-stat rival" style="--team-color:${safe(st.opponentColor)}">
-      <div class="team-stat-name">${safe(rival)}</div>
+      <div class="team-stat-name">${safe(rival)} EN 22 URU</div>
       <div class="team-stat-main">${rEntry.total}</div>
-      <div class="team-stat-caption">entradas</div>
-      <div class="team-stat-rate">${rEntry.pct===null?'—':rEntry.pct+'%'} <small>efectividad · ${rEntry.positive}/${rEntry.resolved} resueltas${rEntry.pending?` · ${rEntry.pending} abierta${rEntry.pending>1?'s':''}`:''}</small></div>
+      <div class="team-stat-caption">entradas rivales</div>
+      <div class="team-stat-rate">${uruDefensePct===null?'—':uruDefensePct+'%'} <small>defensa exitosa · ${uruDefended} defendida${uruDefended===1?'':'s'} · ${rivalConceded} concedida${rivalConceded===1?'':'s'}${rEntry.pending?` · ${rEntry.pending} abierta${rEntry.pending>1?'s':''}`:''}</small></div>
     </div>
   </div>`;
 

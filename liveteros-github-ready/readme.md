@@ -1,1 +1,1 @@
-Los Teros Live V3.9.15 - open staff access from the plain site URL. No users, passwords, or staff token in the URL. Read-only per-match dashboard links remain available.
+Los Teros Live V3.9.16 - 22m entries shown explicitly from Uruguay perspective: URU attack effectiveness and Uruguay defensive success vs rival entries. Plain site URL remains open staff access.
