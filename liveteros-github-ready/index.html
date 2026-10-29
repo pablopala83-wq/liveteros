@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Teros Live" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/teros-shield.png" />
-  <link rel="stylesheet" href="styles.css?v=3912" />
+  <link rel="stylesheet" href="styles.css?v=3915" />
   <title>Los Teros Live</title>
 </head>
 <body>
@@ -18,22 +18,12 @@
     <div class="manager-card" style="max-width:760px">
       <div class="manager-brand">
         <img src="assets/teros-shield.png" alt="Escudo de Los Teros" />
-        <div><div class="manager-title">LOS TEROS LIVE</div><div class="manager-sub">ACCESO ONLINE</div></div>
+        <div><div class="manager-title">LOS TEROS LIVE</div><div class="manager-sub">ACCESO DE STAFF</div></div>
       </div>
-      <div class="manager-grid" style="grid-template-columns:1fr">
-        <form id="authForm" class="new-match-card">
-          <div class="panel-title">INGRESAR</div>
-          <label class="field-label" for="authEmail">Email</label>
-          <input id="authEmail" class="text-input" type="email" autocomplete="email" required placeholder="entrenador@ejemplo.com" />
-          <label class="field-label" for="authPassword">Contraseña</label>
-          <input id="authPassword" class="text-input" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" />
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button id="signInBtn" class="manager-primary" type="submit">INGRESAR</button>
-            <button id="magicLinkBtn" class="small-btn primary" type="button">ENVIAR LINK DE ACCESO</button>
-            <button id="signUpBtn" class="small-btn ghost" type="button">CREAR CUENTA CON CONTRASEÑA</button>
-          </div>
-          <div id="authMessage" class="muted" style="margin-top:12px"></div><div class="field-help" style="margin-top:12px">Sólo administradores y etiquetadores necesitan cuenta. Si te asignaron como etiquetador, podés entrar sin contraseña con “Enviar link de acceso”. Los entrenadores entran al dashboard por link.</div>
-        </form>
+      <div class="new-match-card">
+        <div class="panel-title">LINK COMPARTIDO</div>
+        <div class="field-help">Live Teros ya no usa usuarios ni contraseñas para el staff. Abrí la app desde el link compartido para entrar.</div>
+        <div id="authMessage" class="muted" style="margin-top:12px"></div>
       </div>
     </div>
   </section>
@@ -43,7 +33,7 @@
       <div class="manager-brand">
         <img src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div><div class="manager-title">LOS TEROS LIVE</div><div class="manager-sub">GESTIÓN DE PARTIDOS · <span id="onlineStatus">ONLINE</span></div></div>
-        <button type="button" id="signOutBtn" class="small-btn ghost" style="margin-left:auto">SALIR</button>
+
       </div>
       <div class="manager-grid">
         <form id="newMatchForm" class="new-match-card">
@@ -77,7 +67,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.12 · HEADER DISCIPLINE</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.15 · OPEN STAFF</div>
         </div>
       </div>
 
@@ -89,7 +79,7 @@
         <span id="awayCode" class="score-team">RIVAL</span>
       </div>
 
-      <div class="header-actions"><button type="button" id="backToMatches" class="back-matches">PARTIDOS</button><button type="button" id="editMatchBtn" class="back-matches">EDITAR PARTIDO</button><button type="button" id="accessBtn" class="back-matches">ACCESO</button><div class="tabs main-tabs" role="tablist" aria-label="Vista principal">
+      <div class="header-actions"><button type="button" id="backToMatches" class="back-matches">PARTIDOS</button><button type="button" id="editMatchBtn" class="back-matches">EDITAR PARTIDO</button><button type="button" id="accessBtn" class="back-matches">COMPARTIR</button><div class="tabs main-tabs" role="tablist" aria-label="Vista principal">
         <button type="button" class="tab active" data-main="tag" role="tab" aria-selected="true">TAGGING</button>
         <button type="button" class="tab" data-main="dash" role="tab" aria-selected="false">DASHBOARD</button>
       </div></div>
@@ -330,41 +320,22 @@
     </div>
   </section>
   <section id="accessModal" class="match-manager hidden" style="z-index:50">
-    <div class="manager-card" style="max-width:980px">
-      <div class="manager-brand"><img src="assets/teros-shield.png" alt=""/><div><div class="manager-title">ACCESO AL PARTIDO</div><div class="manager-sub">UN ETIQUETADOR · VIEWERS POR LINK</div></div><button type="button" id="closeAccess" class="small-btn ghost" style="margin-left:auto">CERRAR</button></div>
-      <div class="access-grid">
-        <div class="access-stack">
-          <form id="taggerForm" class="new-match-card">
-            <div class="panel-title">ETIQUETADOR ASIGNADO</div>
-            <div class="field-help">Es la única cuenta que puede modificar el partido. Si el email todavía no tiene cuenta, Live Teros la crea y le envía un link de acceso automáticamente.</div>
-            <label class="field-label" for="taggerEmail">Email del etiquetador</label>
-            <input id="taggerEmail" class="text-input" type="email" required placeholder="analista@ejemplo.com" />
-            <button class="manager-primary" type="submit">ASIGNAR ETIQUETADOR</button>
-            <div id="taggerMessage" class="muted" style="margin-top:10px"></div>
-          </form>
-
-          <div class="new-match-card">
-            <div class="panel-title">DASHBOARD · SOLO LECTURA</div>
-            <div class="field-help">Guzmán, Caco y el resto del staff no necesitan cuenta. Este link abre directamente el dashboard y no permite editar nada.</div>
-            <button id="generateViewerLink" class="manager-primary" type="button">GENERAR / RENOVAR LINK</button>
-            <div id="viewerLinkBox" class="viewer-link-box hidden">
-              <input id="viewerLinkInput" class="text-input" type="text" readonly />
-              <button id="copyViewerLink" class="small-btn primary" type="button">COPIAR LINK</button>
-            </div>
-            <div class="viewer-link-actions"><button id="disableViewerLink" class="small-btn danger" type="button">DESACTIVAR LINK</button></div>
-            <div id="viewerLinkStatus" class="muted" style="margin-top:10px"></div>
-          </div>
+    <div class="manager-card" style="max-width:760px">
+      <div class="manager-brand"><img src="assets/teros-shield.png" alt=""/><div><div class="manager-title">COMPARTIR PARTIDO</div><div class="manager-sub">DASHBOARD · SOLO LECTURA</div></div><button type="button" id="closeAccess" class="small-btn ghost" style="margin-left:auto">CERRAR</button></div>
+      <div class="new-match-card">
+        <div class="panel-title">LINK PARA ENTRENADORES</div>
+        <div class="field-help">Este link abre directamente el dashboard del partido y no permite taggear ni editar.</div>
+        <button id="generateViewerLink" class="manager-primary" type="button">GENERAR / RENOVAR LINK</button>
+        <div id="viewerLinkBox" class="viewer-link-box hidden">
+          <input id="viewerLinkInput" class="text-input" type="text" readonly />
+          <button id="copyViewerLink" class="small-btn primary" type="button">COPIAR LINK</button>
         </div>
-
-        <div class="saved-matches-card">
-          <div class="panel-title">USUARIOS INTERNOS</div>
-          <div class="field-help">Sólo hacen falta para administración o tagging. Los viewers por link no aparecen acá.</div>
-          <div id="memberList" class="saved-matches"></div>
-        </div>
+        <div class="viewer-link-actions"><button id="disableViewerLink" class="small-btn danger" type="button">DESACTIVAR LINK</button></div>
+        <div id="viewerLinkStatus" class="muted" style="margin-top:10px"></div>
       </div>
     </div>
   </section>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=3912"></script>
+  <script src="app.js?v=3915"></script>
 </body>
 </html>
