@@ -493,7 +493,7 @@ let penaltyCarouselSignature='';
 function penaltyCarouselSize(){
   if(window.innerWidth<=420)return 6;
   if(window.innerWidth<=620)return 8;
-  if(window.innerWidth<=900)return 18;
+  if(window.innerWidth<=1100)return 18;
   return 22;
 }
 
@@ -517,7 +517,7 @@ function penaltyTimelineHTML(){
   if(!events.length){
     penaltyCarouselStart=0;
     penaltyCarouselSignature='';
-    return '<div class="penalty-strip-empty">Sin penales registrados</div>';
+    return '<div class="penalty-header-empty"><b>DISCIPLINA</b><span>Sin penales</span></div>';
   }
 
   const signature=`${events.length}|${events[events.length-1]?.time||''}|${events[events.length-1]?.committedBy||''}|${runs.length}`;
@@ -532,34 +532,26 @@ function penaltyTimelineHTML(){
 
   const visible=runs.slice(penaltyCarouselStart,penaltyCarouselStart+pageSize);
   const maxURU=Math.max(0,...runs.filter(r=>r.team==='URU').map(r=>r.events.length));
-  const firstShown=penaltyCarouselStart+1;
-  const lastShown=penaltyCarouselStart+visible.length;
   const canPrev=penaltyCarouselStart>0;
   const canNext=penaltyCarouselStart+pageSize<runs.length;
   const hasPaging=runs.length>pageSize;
 
-  return `<div class="penalty-strip">
-    <div class="penalty-strip-head">
-      <span>SECUENCIA DE PENALES</span>
-      <span class="penalty-strip-max">MÁX. RACHA URU <b>${maxURU}</b></span>
-    </div>
-    <div class="penalty-carousel ${hasPaging?'has-paging':'no-paging'}" style="--rival-color:${safe(st.opponentColor||'#C8102E')}">
+  return `<div class="penalty-header-line" style="--rival-color:${safe(st.opponentColor||'#C8102E')}">
+    <span class="penalty-header-label">DISCIPLINA</span>
+    <div class="penalty-carousel ${hasPaging?'has-paging':'no-paging'}">
       ${hasPaging?`<button type="button" class="penalty-carousel-nav prev" data-penalty-page="prev" ${canPrev?'':'disabled'} aria-label="Ver rachas anteriores">‹</button>`:''}
       <div class="penalty-carousel-window">
-        <div class="penalty-carousel-grid" style="--penalty-cols:${pageSize}">
+        <div class="penalty-carousel-grid">
           ${visible.map(run=>{
             const isURU=run.team==='URU';
             const count=run.events.length;
-            return `<div class="penalty-run-chip ${isURU?'uru':'rival'}" title="${safe(run.team)} · ${count} penal${count===1?'':'es'} · ${penaltyRunTimeLabel(run)}">
-              <div class="penalty-run-main"><span class="penalty-run-team">${isURU?'URU':'RIVAL'}</span><b>×${count}</b></div>
-              <small>${penaltyRunTimeLabel(run)}</small>
-            </div>`;
+            return `<div class="penalty-run-chip ${isURU?'uru':'rival'}" title="${safe(run.team)} · ${count} penal${count===1?'':'es'} · ${penaltyRunTimeLabel(run)}"><span class="penalty-run-team">${isURU?'URU':'RIVAL'}</span><b>×${count}</b></div>`;
           }).join('')}
         </div>
       </div>
       ${hasPaging?`<button type="button" class="penalty-carousel-nav next" data-penalty-page="next" ${canNext?'':'disabled'} aria-label="Ver rachas siguientes">›</button>`:''}
     </div>
-    ${hasPaging?`<div class="penalty-carousel-meta">RACHAS ${firstShown}–${lastShown} DE ${runs.length}</div>`:''}
+    <span class="penalty-header-max">MÁX URU <b>×${maxURU}</b></span>
   </div>`;
 }
 function bindPenaltyCarousel(){
@@ -576,6 +568,13 @@ function bindPenaltyCarousel(){
       bindPenaltyCarousel();
     });
   });
+}
+function syncPenaltyHeaderVisibility(){
+  const ribbon=$('#penaltyHeaderRibbon');
+  if(!ribbon)return;
+  const dashActive=$('.tab[data-main="dash"]')?.classList.contains('active');
+  const generalActive=$('.dash-tab[data-dash="general"]')?.classList.contains('active');
+  ribbon.classList.toggle('hidden',!(dashActive&&generalActive));
 }
 
 function breakEvents(team){
@@ -1346,7 +1345,7 @@ async function handleLiteAction(action,team){
   }
 }
 function originMetaHTML(s){if(!s)return '<span>Elegí un origen para iniciar la secuencia.</span>';const items=[];if(s.origin==='LINE')items.push(['CONFIG.',lineStructureLabel(s.meta)],['DÓNDE TIRAMOS',lineThrowLabel(s.meta.throw)],['OBTENCIÓN',s.meta.obtention||'—'],['MAUL',s.meta.maul||'—'],['ZONA INICIO',s.zStart]);else if(s.origin==='SCRUM')items.push(['UBICACIÓN',s.meta.side||'—'],['OBTENCIÓN',s.meta.obtention||'—'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='RECEPCIÓN KICK')items.push(['ORIGEN','RECEPCIÓN'],['ZONA INICIO',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TURNOVER')items.push(['ORIGEN','TURNOVER'],['ZONA',s.zStart],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='TAP PENAL')items.push(['ORIGEN','TAP PENAL'],['ZONA',zoneName(s.zStart)],['POSESIÓN',teamLabel(s.team)]);else if(s.origin==='FREE KICK')items.push(['ORIGEN','FREE KICK'],['ZONA',s.zStart],['A FAVOR',teamLabel(s.team)]);return items.map(([l,v])=>`<div class="origin-meta-item"><div class="origin-meta-label">${safe(l)}</div><div class="origin-meta-value">${safe(v)}</div></div>`).join('')}
-function applyRoleUI(){document.body.classList.toggle('viewer-mode',!canTagCurrent);document.body.classList.toggle('public-view',!!publicViewToken);let badge='SOLO DASHBOARD';if(publicViewToken)badge='MODO ENTRENADOR · EN VIVO';else if(canTagCurrent&&currentRole==='admin')badge='ADMIN · ETIQUETADOR';else if(canTagCurrent)badge='ETIQUETADOR ASIGNADO';else if(currentRole==='admin')badge='ADMIN · SOLO DASHBOARD';else if(currentRole==='editor')badge='ANALISTA · NO ASIGNADO';$('#roleBadge').textContent=badge;$('#accessBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#editMatchBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#backToMatches').style.display=publicViewToken?'none':'';if(!canTagCurrent){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')}}
+function applyRoleUI(){document.body.classList.toggle('viewer-mode',!canTagCurrent);document.body.classList.toggle('public-view',!!publicViewToken);let badge='SOLO DASHBOARD';if(publicViewToken)badge='MODO ENTRENADOR · EN VIVO';else if(canTagCurrent&&currentRole==='admin')badge='ADMIN · ETIQUETADOR';else if(canTagCurrent)badge='ETIQUETADOR ASIGNADO';else if(currentRole==='admin')badge='ADMIN · SOLO DASHBOARD';else if(currentRole==='editor')badge='ANALISTA · NO ASIGNADO';$('#roleBadge').textContent=badge;$('#accessBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#editMatchBtn').style.display=currentRole==='admin'&&!publicViewToken?'':'none';$('#backToMatches').style.display=publicViewToken?'none':'';if(!canTagCurrent){$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});const d=$('.tab[data-main="dash"]');d.classList.add('active');d.setAttribute('aria-selected','true');$('#tagView').classList.add('hidden');$('#dashView').classList.remove('hidden')};syncPenaltyHeaderVisibility()}
 function toggleClosedValuation(index){
   if(!canTagCurrent)return;
   const seq=st.closed?.[index];
@@ -2040,9 +2039,9 @@ $('#modeFull').onclick=()=>setTagMode('FULL');
 $('#modeLite').onclick=()=>setTagMode('LITE');
 $('#liteUndo').onclick=()=>undoLastAction();
 $$('[data-lite]').forEach(b=>b.onclick=()=>{activeLiteButton=b;handleLiteAction(b.dataset.lite,b.dataset.team).finally(()=>{activeLiteButton=null})});
-$$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash)});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash))});
+$$('.tab').forEach(b=>b.onclick=()=>{if(!canTagCurrent&&b.dataset.main==='tag')return;$$('.tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');const dash=b.dataset.main==='dash';$('#tagView').classList.toggle('hidden',dash);$('#dashView').classList.toggle('hidden',!dash);syncPenaltyHeaderVisibility()});$$('.dash-tab').forEach(b=>b.onclick=()=>{$$('.dash-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['general','line','scrum'].forEach(v=>$('#'+v+'Dash').classList.toggle('hidden',v!==b.dataset.dash));syncPenaltyHeaderVisibility()});
 window.addEventListener('online',()=>{onlineUI();if(dirty)cloudSave(true);if(!activeId)renderMatches()});window.addEventListener('offline',onlineUI);
 sb.auth.onAuthStateChange((_event,session)=>{if(publicViewToken)return;user=session?.user||null;if(!user){stopTimer();unsubscribe();$('#authScreen').classList.remove('hidden');$('#matchManager').classList.add('hidden')}});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=397').then(r=>r.update()).catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=3912').then(r=>r.update()).catch(()=>{});
 boot();
 })();

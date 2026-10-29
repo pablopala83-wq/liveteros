@@ -1092,3 +1092,39 @@
   .penalty-full-band .penalty-run-main b{font-size:8.5px}
   .penalty-full-band .penalty-run-chip small{font-size:5px}
 }
+
+/* V3.9.12 · discipline integrated into header */
+.hero-header{column-gap:18px;row-gap:5px;padding-bottom:8px}
+.penalty-header-ribbon{grid-column:1/-1;width:100%;min-width:0;height:28px;box-sizing:border-box;overflow:hidden;border-top:1px solid rgba(138,162,190,.22);padding-top:4px}
+.penalty-header-line{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-width:0;height:22px}
+.penalty-header-label,.penalty-header-max{font-size:7px;line-height:1;font-weight:950;letter-spacing:.07em;color:#8aa2be;white-space:nowrap}
+.penalty-header-max b{color:var(--uru-celeste);font-size:9px;letter-spacing:0}
+.penalty-header-empty{display:flex;align-items:center;gap:8px;height:22px;font-size:7px;color:#8aa2be;letter-spacing:.06em}
+.penalty-header-empty b{color:#a9bbce}
+.penalty-header-ribbon .penalty-carousel{display:grid;grid-template-columns:18px minmax(0,1fr) 18px;align-items:center;gap:3px;width:100%;min-width:0;margin:0}
+.penalty-header-ribbon .penalty-carousel.no-paging{display:block}
+.penalty-header-ribbon .penalty-carousel-window{width:100%;min-width:0;overflow:hidden}
+.penalty-header-ribbon .penalty-carousel-grid{display:flex;align-items:center;gap:3px;width:max-content;min-width:0}
+.penalty-header-ribbon .penalty-run-chip{display:flex;align-items:center;justify-content:center;gap:2px;flex:0 0 46px;width:46px;min-width:46px;max-width:46px;height:20px;padding:0 3px;border:1px solid rgba(255,255,255,.14);border-top:2px solid var(--uru-celeste);border-radius:4px;background:rgba(255,255,255,.055);box-sizing:border-box;white-space:nowrap;overflow:hidden}
+.penalty-header-ribbon .penalty-run-chip.rival{border-top-color:var(--rival-color,#C8102E)}
+.penalty-header-ribbon .penalty-run-team{font-size:6.5px;line-height:1;font-weight:950;letter-spacing:0;color:var(--uru-celeste);overflow:visible;text-overflow:clip}
+.penalty-header-ribbon .penalty-run-chip.rival .penalty-run-team{color:var(--rival-color,#C8102E)}
+.penalty-header-ribbon .penalty-run-chip b{font-size:9px;line-height:1;color:var(--uru-celeste);font-weight:950}
+.penalty-header-ribbon .penalty-run-chip.rival b{color:var(--rival-color,#C8102E)}
+.penalty-header-ribbon .penalty-run-chip small{display:none!important}
+.penalty-header-ribbon .penalty-carousel-nav{display:flex;align-items:center;justify-content:center;width:18px;height:20px;min-height:0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:4px;background:rgba(255,255,255,.06);color:#b8c8d9;font-size:13px;font-weight:900;line-height:1;cursor:pointer}
+.penalty-header-ribbon .penalty-carousel-nav:disabled{opacity:.22;cursor:default}
+.penalty-header-ribbon .penalty-carousel-meta{display:none!important}
+@media(max-width:1100px){
+  .penalty-header-ribbon .penalty-run-chip{flex-basis:42px;width:42px;min-width:42px;max-width:42px}
+  .penalty-header-label,.penalty-header-max{font-size:6.5px}
+  .penalty-header-line{gap:6px}
+}
+@media(max-width:620px){
+  .penalty-header-ribbon{height:27px;padding-top:3px}
+  .penalty-header-line{grid-template-columns:auto minmax(0,1fr);gap:5px}
+  .penalty-header-max{display:none}
+  .penalty-header-ribbon .penalty-run-chip{flex-basis:39px;width:39px;min-width:39px;max-width:39px;height:19px}
+  .penalty-header-ribbon .penalty-run-team{font-size:6px}
+  .penalty-header-ribbon .penalty-run-chip b{font-size:8px}
+}

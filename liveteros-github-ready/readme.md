@@ -1,1 +1,1 @@
-Live Teros V3.9.11 - ultra-compact full-width discipline strip. Includes all V3.9.10 functionality.
+Los Teros Live V3.9.12 - dashboard con disciplina integrada al header.
