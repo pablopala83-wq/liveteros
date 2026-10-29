@@ -9,8 +9,20 @@
   <meta name="apple-mobile-web-app-title" content="Teros Live" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/teros-shield.png" />
-  <link rel="stylesheet" href="styles.css?v=3916" />
+  <link rel="stylesheet" href="styles.css?v=3918" />
   <title>Los Teros Live</title>
+  <script>
+    (function(){
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(keys){ keys.forEach(function(k){ if (k.indexOf('liveteros-')===0) caches.delete(k); }); });
+        }
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body>
   <div class="page-bg" aria-hidden="true"></div>
@@ -67,7 +79,7 @@
         <img class="brand-shield" src="assets/teros-shield.png" alt="Escudo de Los Teros" />
         <div class="brand-copy">
           <div class="brand-title">LOS TEROS <span>LIVE</span></div>
-          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.16 · 22 ATTACK / DEFENSE</div>
+          <div id="currentMatchLabel" class="brand-sub">ANÁLISIS EN VIVO</div><div id="roleBadge" class="brand-sub"></div><div class="build-badge">V3.9.18 · SET PIECE + PENALTIES · CACHE RESET</div>
         </div>
       </div>
 
@@ -336,6 +348,6 @@
     </div>
   </section>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=3916"></script>
+  <script src="app.js?v=3918"></script>
 </body>
 </html>

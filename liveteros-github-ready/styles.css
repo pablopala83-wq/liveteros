@@ -847,7 +847,7 @@
 .setpiece-table{min-width:650px}
 .setpiece-table.scrum-detail-table{min-width:560px}
 .setpiece-head,.setpiece-row{display:grid;align-items:center;gap:10px;padding:9px 12px}
-.line-detail-table .setpiece-head,.line-detail-table .setpiece-row{grid-template-columns:100px 56px 82px 82px 125px minmax(80px,1fr)}
+.line-detail-table .setpiece-head,.line-detail-table .setpiece-row{grid-template-columns:84px 52px 74px 76px 104px 82px minmax(118px,1fr)}
 .scrum-detail-table .setpiece-head,.scrum-detail-table .setpiece-row{grid-template-columns:90px 58px minmax(90px,1fr) 118px 100px}
 .setpiece-head{background:#f3f7fa;color:#66798d;font-size:9px;font-weight:950;letter-spacing:.07em}
 .setpiece-row{border-top:1px solid #e6edf2;font-size:11px;color:#344b60}

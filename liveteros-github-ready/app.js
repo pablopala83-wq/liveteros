@@ -221,12 +221,21 @@ function countPenalty(result,team,meta={}){
     st.penaltyJerseys[n]=(st.penaltyJerseys[n]||0)+1
   }
 }
-async function askPenaltyDetail(result){
-  if(result!=='PENAL URU') return {};
-  const reason=await flow('PENAL URU · motivo',['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']);
-  const jersey=await flow('PENAL URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);
-  const player=st.roster?.[String(jersey)]||null;
-  return {penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:player};
+const PENALTY_REASONS_ATTACK=['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','NO RELEASE','OFFSIDE ATAQUE','MAUL ATAQUE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO'];
+const PENALTY_REASONS_DEFENSE=['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO SALE TACKLEADOR','MAUL DEFENSA','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO'];
+function penaltyReasonsForPhase(phase){return phase==='ATAQUE'?PENALTY_REASONS_ATTACK:PENALTY_REASONS_DEFENSE}
+function penaltyPhaseFor(committedBy,possessionTeam){return committedBy===possessionTeam?'ATAQUE':'DEFENSA'}
+async function askPenaltyDetail(result,phase=null){
+  const committedBy=result==='PENAL URU'?'URU':result==='PENAL RIVAL'?'RIVAL':null;
+  if(!committedBy)return {};
+  const resolvedPhase=phase||penaltyPhaseFor(committedBy,st.sequence?.team||st.team);
+  const reason=await flow(`PENAL ${teamLabel(committedBy)} · ${resolvedPhase} · motivo`,penaltyReasonsForPhase(resolvedPhase));
+  const detail={penaltyReason:reason,penaltyPhase:resolvedPhase};
+  if(committedBy==='URU'){
+    const jersey=await flow('PENAL URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);
+    detail.penaltyJersey=jersey;detail.penaltyPlayer=st.roster?.[String(jersey)]||null;
+  }
+  return detail;
 }
 function recordStandalonePenalty(committedBy,zone,meta={},previousTeam=st.team){
   st.penaltyEvents=st.penaltyEvents||[];
@@ -337,11 +346,13 @@ async function resolveWithAdvantage(actualResult,z,opts={}){
   await resolveTerminal(result,finalZone,{nextTeam});
 }
 async function resolveSetPieceNotObtained(type,z){
+  if(type==='SCRUM'){
+    const old=st.sequence?.team||st.team;
+    closeSeq('NO OBTENIDO',z,'NEGATIVA');st.team=other(old);save();render();return;
+  }
   const rivalPen=`PENAL ${st.opponent.toUpperCase()}`;
   const rivalFk=`FREE KICK ${st.opponent.toUpperCase()}`;
-  const choices=type==='SCRUM'
-    ? ['FREE KICK URU',rivalFk,'OTRO']
-    : ['TURNOVER','KNOCK ON','TIRADA TORCIDA','PENAL URU',rivalPen,'FREE KICK URU',rivalFk,'OTRO'];
+  const choices=['TURNOVER','KNOCK ON','TIRADA TORCIDA','OTRO'];
   const out=await flow(`${type} NO OBTENIDO · ¿qué pasó?`,choices);
   const normalized=out===rivalPen?'PENAL RIVAL':out===rivalFk?'FREE KICK RIVAL':out;
 
@@ -813,23 +824,29 @@ function setPieceStatusHTML(obtention,isOpen=false){
   const won=obtention==='OBTENIDO';
   return `<span class="setpiece-status ${won?'won':'lost'}">${safe(obtention||'—')}</span>`;
 }
+function lineSanctionHTML(meta={}){
+  const kind=meta.lineSanction;
+  if(!kind)return '<span>—</span>';
+  const status=meta.lineCommittedBy==='URU'?'EN CONTRA':'A FAVOR';
+  return `<span class="setpiece-status ${status==='A FAVOR'?'won':'lost'}">${safe(kind)} ${status}</span>`;
+}
 function lineListHTML(team){
   const rows=[...setPieceRows(team,'LINE')].sort((a,b)=>stampValue(b.start)-stampValue(a.start));
   if(!rows.length)return '<div class="empty-stat">Sin lines registrados</div>';
   return `<div class="setpiece-table-wrap"><div class="setpiece-table line-detail-table">
-    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>HOMBRES</span><span>TIRO</span><span>OBTENCIÓN</span><span>MAUL</span></div>
-    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(lineStructureLabel(x.meta||{}))}</span><span>${safe(lineThrowLabel(x.meta?.throw))}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(x.meta?.maul||'—')}</span></div>`).join('')}
+    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>HOMBRES</span><span>TIRO</span><span>OBTENCIÓN</span><span>MAUL</span><span>SANCIÓN</span></div>
+    ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(lineStructureLabel(x.meta||{}))}</span><span>${safe(lineThrowLabel(x.meta?.throw))}</span><span>${setPieceStatusHTML(x.meta?.obtention,x.isOpen)}</span><span>${safe(x.meta?.maul||'—')}</span><span>${lineSanctionHTML(x.meta||{})}</span></div>`).join('')}
   </div></div>`;
 }
 function scrumPenaltyStatus(meta={},scrumTeam=null){
-  if(!meta.scrumPenalty&&!meta.penaltyAgainst&&!meta.penaltyUruguay)return '—';
+  if(!meta.scrumPenalty&&!meta.scrumFreeKick&&!meta.penaltyAgainst&&!meta.penaltyUruguay)return '—';
   if(meta.penaltyUruguay)return meta.penaltyUruguay;
   if(meta.penaltyCommittedBy)return meta.penaltyCommittedBy==='URU'?'EN CONTRA':'A FAVOR';
   if(scrumTeam&&meta.penaltyAgainst){
     const committedBy=meta.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam);
     return committedBy==='URU'?'EN CONTRA':'A FAVOR';
   }
-  return 'PENAL';
+  return meta.scrumFreeKick?'FREE KICK':'PENAL';
 }
 function scrumObtainerHTML(scrumTeam,obtention,isOpen=false){
   if(isOpen&&!obtention)return '<span class="setpiece-status pending">EN CURSO</span>';
@@ -841,15 +858,16 @@ function scrumObtainerHTML(scrumTeam,obtention,isOpen=false){
 }
 function scrumPenaltyHTML(meta={},scrumTeam=null){
   const status=scrumPenaltyStatus(meta,scrumTeam);
-  if(status==='A FAVOR')return '<span class="setpiece-status won">A FAVOR</span>';
-  if(status==='EN CONTRA')return '<span class="setpiece-status lost">EN CONTRA</span>';
+  const kind=meta.scrumFreeKick?'FK':meta.scrumPenalty?'PENAL':'';
+  if(status==='A FAVOR')return `<span class="setpiece-status won">${kind||'PENAL'} A FAVOR</span>`;
+  if(status==='EN CONTRA')return `<span class="setpiece-status lost">${kind||'PENAL'} EN CONTRA</span>`;
   return `<span>${safe(status)}</span>`;
 }
 function scrumListHTML(team){
-  const rows=setPieceRows(team,'SCRUM');
+  const rows=[...setPieceRows(team,'SCRUM')].sort((a,b)=>stampValue(b.start)-stampValue(a.start));
   if(!rows.length)return '<div class="empty-stat">Sin scrums registrados</div>';
   return `<div class="setpiece-table-wrap"><div class="setpiece-table scrum-detail-table">
-    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTUVO</span><span>PENAL</span></div>
+    <div class="setpiece-head"><span>MIN</span><span>ZONA</span><span>LADO</span><span>OBTUVO</span><span>SANCIÓN</span></div>
     ${rows.map(x=>`<div class="setpiece-row"><span>${safe(x.start||'—')}</span><span class="setpiece-zone">${safe(zoneCode(x.zStart))}</span><span>${safe(x.meta?.side||'—')}</span><span>${scrumObtainerHTML(team,x.meta?.obtention,x.isOpen)}</span><span>${scrumPenaltyHTML(x.meta||{},team)}</span></div>`).join('')}
   </div></div>`;
 }
@@ -1080,8 +1098,9 @@ function liteSetPiece(team,type,z,meta,actionId=null,timeOverride=null){
   st.launches=st.launches||[];
   st.launches.push({team,type,z,start:timeOverride||stamp(),lite:true,liteId:id,...meta});
   if(meta.obtention==='NO OBTENIDO'&&litePendingEntry(team))liteResolveEntry(team,'NEGATIVA',0,`${type} NO OBTENIDO`,id);
-  const scrumPenaltyDetail=type==='SCRUM'&&meta.scrumPenalty?` · PENAL ${scrumPenaltyStatus(meta,team)}`:'';
-  liteLog(type,team,{id,z,detail:type==='LINE'?`${meta.lineStructure} · ${meta.throw} · ${meta.obtention}${meta.maul?` · ${meta.maul}`:''}`:`${meta.side||''}${meta.side?' · ':''}${meta.obtention}${scrumPenaltyDetail}`,payload:{type,z,...meta},time:timeOverride||undefined});
+  const scrumSanctionDetail=type==='SCRUM'&&(meta.scrumPenalty||meta.scrumFreeKick)?` · ${meta.scrumFreeKick?'FK':'PENAL'} ${scrumPenaltyStatus(meta,team)}`:'';
+  const lineSanctionDetail=type==='LINE'&&meta.lineSanction?` · ${meta.lineSanction} ${meta.lineCommittedBy==='URU'?'EN CONTRA':'A FAVOR'}`:'';
+  liteLog(type,team,{id,z,detail:type==='LINE'?`${meta.lineStructure} · ${meta.throw} · ${meta.obtention}${meta.maul&&meta.maul!=='—'?` · ${meta.maul}`:''}${lineSanctionDetail}`:`${meta.side||''}${meta.side?' · ':''}${meta.obtention}${scrumSanctionDetail}`,payload:{type,z,...meta},time:timeOverride||undefined});
   return id
 }
 function liteRecordBreak(team,z,playerData={},actionId=null,timeOverride=null){
@@ -1094,8 +1113,7 @@ function liteRecordBreak(team,z,playerData={},actionId=null,timeOverride=null){
   return id
 }
 async function litePenaltyConsequence(committedBy){
-  if(committedBy!=='URU')return {label:null,score:0};
-  const choice=await flow('LITE · PENAL EN CONTRA · consecuencia',['PALOS +3','PALOS ERRADO','LINE','SCRUM','TAP','OTRO']);
+  const choice=await flow(`LITE · PENAL A FAVOR ${teamLabel(other(committedBy))} · consecuencia`,['PALOS +3','PALOS ERRADO','LINE','SCRUM','TAP','OTRO']);
   if(choice==='LINE'||choice==='SCRUM'){
     const z=await zone(`LITE · ${choice} POST PENAL · zona`);
     return {label:`${choice} ${z}`,score:0};
@@ -1123,8 +1141,8 @@ function consequenceFromWizard(ctx){
   if(ctx.consequenceChoice==='PALOS +3')return {label:'PALOS +3',score:3};
   return {label:ctx.consequenceChoice,score:0};
 }
-function penaltyConsequenceSteps(){return [
-  {key:'consequenceChoice',title:'LITE · PENAL EN CONTRA · consecuencia',buttons:['PALOS +3','PALOS ERRADO','LINE','SCRUM','TAP','OTRO']},
+function penaltyConsequenceSteps(committedBy){return [
+  {key:'consequenceChoice',title:`PENAL A FAVOR ${teamLabel(other(committedBy))} · consecuencia`,buttons:['PALOS +3','PALOS ERRADO','LINE','SCRUM','TAP','OTRO']},
   {key:'consequenceZone',title:c=>`LITE · ${c.consequenceChoice} POST PENAL · zona`,buttons:['Z1','Z2','Z3','Z4'],when:c=>c.consequenceChoice==='LINE'||c.consequenceChoice==='SCRUM'}
 ]}
 function liteRecordScore(team,pts,kind,actionId=null,timeOverride=null){
@@ -1168,7 +1186,7 @@ function deleteLiteTagCore(row){
   const id=row.id;
   if(row.label==='LINE'||row.label==='SCRUM'){
     const obj=findLiteLaunch(row);if(obj){const i=st.launches.indexOf(obj);if(i>=0)st.launches.splice(i,1)}
-    if(row.label==='SCRUM'){const pen=(st.penaltyEvents||[]).find(x=>x.liteId===id||x.meta?.liteId===id);if(pen){const i=st.penaltyEvents.indexOf(pen);if(i>=0)st.penaltyEvents.splice(i,1)}const score=(st.scoreEvents||[]).find(x=>x.sourcePenaltyId===id);if(score)removeScoreEventObject(score)}
+    if(row.label==='SCRUM'||row.label==='LINE'){const pen=(st.penaltyEvents||[]).find(x=>x.liteId===id||x.meta?.liteId===id);if(pen){const i=st.penaltyEvents.indexOf(pen);if(i>=0)st.penaltyEvents.splice(i,1)}const score=(st.scoreEvents||[]).find(x=>x.sourcePenaltyId===id);if(score)removeScoreEventObject(score)}
   }else if(row.label==='QUIEBRE'){
     const obj=findLiteBreak(row);if(obj){const i=st.liteBreaks.indexOf(obj);if(i>=0)st.liteBreaks.splice(i,1)}
   }else if(row.label==='PENAL'){
@@ -1200,34 +1218,44 @@ async function editLiteTag(id){
       {key:'men',title:'EDITAR LINE · cantidad de jugadores',buttons:['3','4','5','6','7']},
       {key:'plusOneChoice',title:c=>`EDITAR LINE · ${c.men} · ¿hay +1?`,buttons:['NO','SÍ']},
       {key:'throw',title:'EDITAR LINE · tiro',buttons:['ADELANTE','MEDIO','COLA']},
-      {key:'obtention',title:'EDITAR LINE · obtención',buttons:['OBTENIDO','NO OBTENIDO']},
-      {key:'maul',title:'EDITAR LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.obtention==='OBTENIDO'}
+      {key:'lineResult',title:'EDITAR LINE · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+      {key:'lineOffender',title:'EDITAR LINE · ¿quién comete la infracción?',buttons:['URU',st.opponent],when:c=>c.lineResult==='PENAL'||c.lineResult==='FREE KICK'},
+      {key:'penaltyPlayerChoice',title:'EDITAR LINE · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.lineResult==='PENAL'&&c.lineOffender==='URU'},
+      {key:'maul',title:'EDITAR LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.lineResult==='OBTENIDO'}
     ]);
-    const plusOne=w.plusOneChoice==='SÍ',structure=plusOne?`${w.men}+1`:w.men,maul=w.obtention==='OBTENIDO'?w.maul:'NO MAUL';
-    pushUndo();deleteLiteTagCore(row);liteSetPiece(team,'LINE',w.z,{men:w.men,plusOne,lineStructure:structure,throw:w.throw,obtention:w.obtention,maul},id,row.time);
+    const plusOne=w.plusOneChoice==='SÍ',structure=plusOne?`${w.men}+1`:w.men;
+    const offender=(w.lineResult==='PENAL'||w.lineResult==='FREE KICK')?(w.lineOffender==='URU'?'URU':'RIVAL'):null,obtainingTeam=offender?other(offender):null;
+    const obtention=offender?(obtainingTeam===team?'OBTENIDO':'NO OBTENIDO'):w.lineResult,maul=w.lineResult==='OBTENIDO'?w.maul:(offender?'—':'NO MAUL');
+    let meta={men:w.men,plusOne,lineStructure:structure,throw:w.throw,obtention,maul};if(offender)meta={...meta,lineSanction:w.lineResult,lineCommittedBy:offender};
+    let detail={};if(w.lineResult==='PENAL'){const phase=penaltyPhaseFor(offender,team);detail={penaltyReason:'LINE',penaltyPhase:phase};if(offender==='URU'){const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player}}}
+    pushUndo();deleteLiteTagCore(row);liteSetPiece(team,'LINE',w.z,meta,id,row.time);if(w.lineResult==='PENAL')liteRecordPenalty(offender,penaltyPhaseFor(offender,team),w.z,detail,{label:null,score:0},id,row.time,{infer:false,log:false});
   }else if(row.label==='SCRUM'){
     const steps=[
       {key:'z',title:'EDITAR SCRUM · zona',buttons:['Z1','Z2','Z3','Z4']},
       {key:'side',title:'EDITAR SCRUM · ubicación',buttons:['IZQUIERDA','CENTRO','DERECHA']},
-      {key:'scrumResult',title:'EDITAR SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL']},
-      {key:'penaltyAgainst',title:'EDITAR SCRUM · ¿a quién le cobran el penal?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'},
-      {key:'penaltyPlayerChoice',title:'EDITAR SCRUM · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')},
-      ...penaltyConsequenceSteps().map(step=>({...step,when:((orig)=>c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')&&(!orig||orig(c)))(step.when)}))
+      {key:'scrumResult',title:'EDITAR SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+      {key:'penaltyAgainst',title:'EDITAR SCRUM · ¿a quién le cobran la sanción?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'||c.scrumResult==='FREE KICK'},
+      {key:'penaltyPlayerChoice',title:'EDITAR SCRUM · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')}
     ];
     const w=await runWizard(steps);let obtention=w.scrumResult;let meta={side:w.side};let committedBy=null,phase=null,detail={},consequence={label:null,score:0};
-    if(w.scrumResult==='PENAL'){
+    if(w.scrumResult==='PENAL'||w.scrumResult==='FREE KICK'){
       obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';committedBy=w.penaltyAgainst==='OFENSIVO'?team:other(team);phase=w.penaltyAgainst==='OFENSIVO'?'ATAQUE':'DEFENSA';
-      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
-      if(committedBy==='URU'){const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);detail={penaltyReason:'SCRUM',penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player};consequence=consequenceFromWizard(w);if(consequence.label)meta.penaltyConsequence=consequence.label}
+      meta={...meta,obtention,scrumPenalty:w.scrumResult==='PENAL',scrumFreeKick:w.scrumResult==='FREE KICK',penaltyAgainst:w.penaltyAgainst,penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
+      if(w.scrumResult==='PENAL'){meta.penaltyReason='SCRUM';detail={penaltyReason:'SCRUM',penaltyPhase:phase};if(committedBy==='URU'){const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player}}}
     }else meta.obtention=obtention;
     pushUndo();deleteLiteTagCore(row);liteSetPiece(team,'SCRUM',w.z,meta,id,row.time);if(w.scrumResult==='PENAL')liteRecordPenalty(committedBy,phase,w.z,detail,consequence,id,row.time,{infer:false,log:false});
   }else if(row.label==='QUIEBRE'){
     const w=await runWizard([{key:'z',title:`EDITAR QUIEBRE ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']},{key:'playerChoice',title:`EDITAR QUIEBRE ${teamLabel(team)} · jugador`,buttons:()=>teamPlayerChoices(team)}]);
     const playerData=teamPlayerChoiceData(team,w.playerChoice);pushUndo();deleteLiteTagCore(row);liteRecordBreak(team,w.z,playerData,id,row.time);
   }else if(row.label==='PENAL'){
-    const steps=[{key:'phase',title:`EDITAR PENAL ${teamLabel(team)} · fase`,buttons:['ATAQUE','DEFENSA']},{key:'z',title:`EDITAR PENAL ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']}];
-    if(team==='URU')steps.push({key:'reason',title:'EDITAR PENAL URU · motivo',buttons:['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']},{key:'playerChoice',title:'EDITAR PENAL URU · jugador',buttons:()=>teamPlayerChoices('URU')},...penaltyConsequenceSteps());
-    const w=await runWizard(steps);let detail={};if(team==='URU'){const pd=teamPlayerChoiceData('URU',w.playerChoice);detail={penaltyReason:w.reason,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'}}const consequence=team==='URU'?consequenceFromWizard(w):{label:null,score:0};
+    const steps=[
+      {key:'phase',title:`EDITAR PENAL ${teamLabel(team)} · fase`,buttons:['ATAQUE','DEFENSA']},
+      {key:'z',title:`EDITAR PENAL ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']},
+      {key:'reason',title:c=>`EDITAR PENAL ${teamLabel(team)} · ${c.phase} · motivo`,buttons:c=>penaltyReasonsForPhase(c.phase)}
+    ];
+    if(team==='URU')steps.push({key:'playerChoice',title:'EDITAR PENAL URU · jugador',buttons:()=>teamPlayerChoices('URU')});
+    steps.push(...penaltyConsequenceSteps(team));
+    const w=await runWizard(steps);let detail={penaltyReason:w.reason,penaltyPhase:w.phase};if(team==='URU'){const pd=teamPlayerChoiceData('URU',w.playerChoice);detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'}}const consequence=consequenceFromWizard(w);
     pushUndo();deleteLiteTagCore(row);liteRecordPenalty(team,w.phase,w.z,detail,consequence,id,row.time);
   }else if(['TRY','CONVERSIÓN','PENAL A PALOS','DROP'].includes(row.label)){
     const who=await flow(`EDITAR ${row.label} · equipo`,['URU',st.opponent]);const newTeam=who==='URU'?'URU':'RIVAL';const pts=row.label==='TRY'?5:row.label==='CONVERSIÓN'?2:3;
@@ -1287,20 +1315,18 @@ async function handleLiteAction(action,team){
   if(action==='penalty'){
     const steps=[
       {key:'phase',title:`LITE · PENAL ${teamLabel(team)} · fase`,buttons:['ATAQUE','DEFENSA']},
-      {key:'z',title:`LITE · PENAL ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']}
+      {key:'z',title:`LITE · PENAL ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']},
+      {key:'reason',title:c=>`LITE · PENAL ${teamLabel(team)} · ${c.phase} · motivo`,buttons:c=>penaltyReasonsForPhase(c.phase)}
     ];
-    if(team==='URU')steps.push(
-      {key:'reason',title:'LITE · PENAL URU · motivo',buttons:['BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','PESCA','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','MAUL','LINE','JUEGO AÉREO','FOUL PLAY','IFOK','OTRO']},
-      {key:'playerChoice',title:'LITE · PENAL URU · jugador',buttons:()=>teamPlayerChoices('URU')},
-      ...penaltyConsequenceSteps()
-    );
+    if(team==='URU')steps.push({key:'playerChoice',title:'LITE · PENAL URU · jugador',buttons:()=>teamPlayerChoices('URU')});
+    steps.push(...penaltyConsequenceSteps(team));
     const w=await runWizard(steps);
-    let detail={};
+    let detail={penaltyReason:w.reason,penaltyPhase:w.phase};
     if(team==='URU'){
       const pd=teamPlayerChoiceData('URU',w.playerChoice);
-      detail={penaltyReason:w.reason,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};
+      detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};
     }
-    const consequence=team==='URU'?consequenceFromWizard(w):{label:null,score:0};
+    const consequence=consequenceFromWizard(w);
     pushUndo();liteRecordPenalty(team,w.phase,w.z,detail,consequence,actionId);save();render();return
   }
   if(action==='line'){
@@ -1309,36 +1335,51 @@ async function handleLiteAction(action,team){
       {key:'men',title:'LITE · LINE · cantidad de jugadores',buttons:['3','4','5','6','7']},
       {key:'plusOneChoice',title:c=>`LITE · LINE · ${c.men} · ¿hay +1?`,buttons:['NO','SÍ']},
       {key:'throw',title:'LITE · LINE · tiro',buttons:['ADELANTE','MEDIO','COLA']},
-      {key:'obtention',title:'LITE · LINE · obtención',buttons:['OBTENIDO','NO OBTENIDO']},
-      {key:'maul',title:'LITE · LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.obtention==='OBTENIDO'}
+      {key:'lineResult',title:'LITE · LINE · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+      {key:'lineOffender',title:'LITE · LINE · ¿quién comete la infracción?',buttons:['URU',st.opponent],when:c=>c.lineResult==='PENAL'||c.lineResult==='FREE KICK'},
+      {key:'penaltyPlayerChoice',title:'LITE · LINE · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.lineResult==='PENAL'&&c.lineOffender==='URU'},
+      {key:'maul',title:'LITE · LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.lineResult==='OBTENIDO'}
     ]);
-    const plusOne=w.plusOneChoice==='SÍ', structure=plusOne?`${w.men}+1`:`${w.men}`, maul=w.obtention==='OBTENIDO'?w.maul:'NO MAUL';
-    pushUndo();liteSetPiece(team,'LINE',w.z,{men:w.men,plusOne,lineStructure:structure,throw:w.throw,obtention:w.obtention,maul},actionId);save();render();return
+    const plusOne=w.plusOneChoice==='SÍ', structure=plusOne?`${w.men}+1`:`${w.men}`;
+    const offender=(w.lineResult==='PENAL'||w.lineResult==='FREE KICK')?(w.lineOffender==='URU'?'URU':'RIVAL'):null;
+    const obtainingTeam=offender?other(offender):null;
+    const obtention=offender?(obtainingTeam===team?'OBTENIDO':'NO OBTENIDO'):w.lineResult;
+    const maul=w.lineResult==='OBTENIDO'?w.maul:(offender?'—':'NO MAUL');
+    let meta={men:w.men,plusOne,lineStructure:structure,throw:w.throw,obtention,maul};
+    if(offender)meta={...meta,lineSanction:w.lineResult,lineCommittedBy:offender};
+    let detail={};
+    if(w.lineResult==='PENAL'){
+      const phase=penaltyPhaseFor(offender,team);detail={penaltyReason:'LINE',penaltyPhase:phase};
+      if(offender==='URU'){const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player}}
+    }
+    pushUndo();liteSetPiece(team,'LINE',w.z,meta,actionId);
+    if(w.lineResult==='PENAL')liteRecordPenalty(offender,penaltyPhaseFor(offender,team),w.z,detail,{label:null,score:0},actionId,null,{infer:false,log:false});
+    save();render();return
   }
   if(action==='scrum'){
     const steps=[
       {key:'z',title:`LITE · SCRUM ${teamLabel(team)} · zona`,buttons:['Z1','Z2','Z3','Z4']},
       {key:'side',title:'LITE · SCRUM · ubicación',buttons:['IZQUIERDA','CENTRO','DERECHA']},
-      {key:'scrumResult',title:'LITE · SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL']},
-      {key:'penaltyAgainst',title:'LITE · SCRUM · ¿a quién le cobran el penal?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'},
-      {key:'penaltyPlayerChoice',title:'LITE · SCRUM · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')},
-      ...penaltyConsequenceSteps().map(step=>({...step,when:((orig)=>c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')&&(!orig||orig(c)))(step.when)}))
+      {key:'scrumResult',title:'LITE · SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+      {key:'penaltyAgainst',title:'LITE · SCRUM · ¿a quién le cobran la sanción?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'||c.scrumResult==='FREE KICK'},
+      {key:'penaltyPlayerChoice',title:'LITE · SCRUM · penal URU · jugador',buttons:()=>teamPlayerChoices('URU'),when:c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?team:other(team))==='URU')}
     ];
     const w=await runWizard(steps);
     let obtention=w.scrumResult;
     let meta={side:w.side};
     let committedBy=null,phase=null,detail={},consequence={label:null,score:0};
-    if(w.scrumResult==='PENAL'){
+    if(w.scrumResult==='PENAL'||w.scrumResult==='FREE KICK'){
       obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';
       committedBy=w.penaltyAgainst==='OFENSIVO'?team:other(team);
       phase=w.penaltyAgainst==='OFENSIVO'?'ATAQUE':'DEFENSA';
-      meta={...meta,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
-      if(committedBy==='URU'){
-        const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);
-        detail={penaltyReason:'SCRUM',penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};
-        meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player};
-        consequence=consequenceFromWizard(w);
-        if(consequence.label)meta.penaltyConsequence=consequence.label;
+      meta={...meta,obtention,scrumPenalty:w.scrumResult==='PENAL',scrumFreeKick:w.scrumResult==='FREE KICK',penaltyAgainst:w.penaltyAgainst,penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
+      if(w.scrumResult==='PENAL'){
+        meta.penaltyReason='SCRUM';detail={penaltyReason:'SCRUM',penaltyPhase:phase};
+        if(committedBy==='URU'){
+          const pd=teamPlayerChoiceData('URU',w.penaltyPlayerChoice);
+          detail={...detail,penaltyJersey:pd.jersey,penaltyPlayer:pd.player,team:'URU'};
+          meta={...meta,penaltyJersey:pd.jersey,penaltyPlayer:pd.player};
+        }
       }
     }else meta.obtention=obtention;
     pushUndo();
@@ -1659,18 +1700,36 @@ onTap('#startFreeKick',async()=>{
 
 onTap('#startLine',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
+  const lineTeam=st.team;
   const w=await runWizard([
     {key:'z',title:'LINE · zona de inicio',buttons:['Z1','Z2','Z3','Z4']},
     {key:'men',title:'LINE · cantidad de jugadores',buttons:['3','4','5','6','7']},
     {key:'plusOneChoice',title:c=>`LINE · ${c.men} · ¿hay +1?`,buttons:['NO','SÍ']},
     {key:'throw',title:'LINE · tiro',buttons:['ADELANTE','MEDIO','COLA']},
-    {key:'obtention',title:'LINE · obtención',buttons:['OBTENIDO','NO OBTENIDO']},
-    {key:'maul',title:'LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.obtention==='OBTENIDO'}
+    {key:'lineResult',title:'LINE · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+    {key:'lineOffender',title:'LINE · ¿quién comete la infracción?',buttons:['URU',st.opponent],when:c=>c.lineResult==='PENAL'||c.lineResult==='FREE KICK'},
+    {key:'penaltyJersey',title:'LINE · penal URU · Nº camiseta',buttons:['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23'],when:c=>c.lineResult==='PENAL'&&c.lineOffender==='URU'},
+    {key:'maul',title:'LINE · ¿hay maul?',buttons:['MAUL','NO MAUL'],when:c=>c.lineResult==='OBTENIDO'}
   ]);
-  const plusOne=w.plusOneChoice==='SÍ',lineStructure=plusOne?`${w.men}+1`:`${w.men}`,maul=w.obtention==='OBTENIDO'?w.maul:'NO MAUL';
-  const baseMeta={men:w.men,plusOne,lineStructure,throw:w.throw,obtention:w.obtention};
-  if(w.obtention==='NO OBTENIDO'){openSeq('LINE',w.z,{...baseMeta,maul});st.launches.push({team:st.team,type:'LINE',z:w.z,...baseMeta,maul});await resolveSetPieceNotObtained('LINE',w.z);return}
-  openSeq('LINE',w.z,{...baseMeta,maul});st.launches.push({team:st.team,type:'LINE',z:w.z,...baseMeta,maul});save();render()
+  const plusOne=w.plusOneChoice==='SÍ',lineStructure=plusOne?`${w.men}+1`:`${w.men}`;
+  const offender=(w.lineResult==='PENAL'||w.lineResult==='FREE KICK')?(w.lineOffender==='URU'?'URU':'RIVAL'):null;
+  const obtainingTeam=offender?other(offender):null;
+  const obtention=offender?(obtainingTeam===lineTeam?'OBTENIDO':'NO OBTENIDO'):w.lineResult;
+  const maul=w.lineResult==='OBTENIDO'?w.maul:(offender?'—':'NO MAUL');
+  let meta={men:w.men,plusOne,lineStructure,throw:w.throw,obtention,maul};
+  if(offender)meta={...meta,lineSanction:w.lineResult,lineCommittedBy:offender};
+  if(w.lineResult==='PENAL'){
+    const phase=penaltyPhaseFor(offender,lineTeam);meta={...meta,penaltyReason:'LINE',penaltyPhase:phase};
+    if(offender==='URU'){meta.penaltyJersey=w.penaltyJersey;meta.penaltyPlayer=st.roster?.[String(w.penaltyJersey)]||null}
+    openSeq('LINE',w.z,meta);st.launches.push({team:lineTeam,type:'LINE',z:w.z,...meta});
+    closeSeq(offender==='URU'?'PENAL URU':'PENAL RIVAL',w.z,offender===lineTeam?'NEGATIVA':'POSITIVA');st.team=other(offender);save();render();return
+  }
+  if(w.lineResult==='FREE KICK'){
+    openSeq('LINE',w.z,meta);st.launches.push({team:lineTeam,type:'LINE',z:w.z,...meta});
+    closeSeq(obtainingTeam==='URU'?'FREE KICK URU':'FREE KICK RIVAL',w.z,offender===lineTeam?'NEGATIVA':'POSITIVA');st.team=obtainingTeam;save();render();return
+  }
+  if(obtention==='NO OBTENIDO'){openSeq('LINE',w.z,meta);st.launches.push({team:lineTeam,type:'LINE',z:w.z,...meta});await resolveSetPieceNotObtained('LINE',w.z);return}
+  openSeq('LINE',w.z,meta);st.launches.push({team:lineTeam,type:'LINE',z:w.z,...meta});save();render()
 });
 onTap('#startScrum',async()=>{
   if(!(await ensureClock())||!(await canStart()))return;
@@ -1678,18 +1737,19 @@ onTap('#startScrum',async()=>{
   const w=await runWizard([
     {key:'z',title:'SCRUM · zona de inicio',buttons:['Z1','Z2','Z3','Z4']},
     {key:'side',title:'SCRUM · ubicación',buttons:['IZQUIERDA','CENTRO','DERECHA']},
-    {key:'scrumResult',title:'SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL']},
-    {key:'penaltyAgainst',title:'SCRUM · ¿a quién le cobran el penal?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'},
+    {key:'scrumResult',title:'SCRUM · resultado',buttons:['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']},
+    {key:'penaltyAgainst',title:'SCRUM · ¿a quién le cobran la sanción?',buttons:['OFENSIVO','DEFENSIVO'],when:c=>c.scrumResult==='PENAL'||c.scrumResult==='FREE KICK'},
     {key:'penaltyPlayerChoice',title:'SCRUM · penal URU · Nº camiseta',buttons:['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23'],when:c=>c.scrumResult==='PENAL'&&((c.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam))==='URU')}
   ]);
-  if(w.scrumResult==='PENAL'){
+  if(w.scrumResult==='PENAL'||w.scrumResult==='FREE KICK'){
     const obtention=w.penaltyAgainst==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO';
-    const committedBy=w.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam);
-    const result=committedBy==='URU'?'PENAL URU':'PENAL RIVAL';
-    const meta={side:w.side,obtention,scrumPenalty:true,penaltyAgainst:w.penaltyAgainst,penaltyReason:'SCRUM',penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
-    if(committedBy==='URU'){meta.penaltyJersey=w.penaltyPlayerChoice;meta.penaltyPlayer=st.roster?.[String(w.penaltyPlayerChoice)]||null}
+    const committedBy=w.penaltyAgainst==='OFENSIVO'?scrumTeam:other(scrumTeam),beneficiary=other(committedBy);
+    const isPenalty=w.scrumResult==='PENAL';
+    const result=isPenalty?(committedBy==='URU'?'PENAL URU':'PENAL RIVAL'):(beneficiary==='URU'?'FREE KICK URU':'FREE KICK RIVAL');
+    const meta={side:w.side,obtention,scrumPenalty:isPenalty,scrumFreeKick:!isPenalty,penaltyAgainst:w.penaltyAgainst,penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
+    if(isPenalty){meta.penaltyReason='SCRUM';meta.penaltyPhase=w.penaltyAgainst==='OFENSIVO'?'ATAQUE':'DEFENSA';if(committedBy==='URU'){meta.penaltyJersey=w.penaltyPlayerChoice;meta.penaltyPlayer=st.roster?.[String(w.penaltyPlayerChoice)]||null}}
     openSeq('SCRUM',w.z,meta);st.launches.push({team:scrumTeam,type:'SCRUM',z:w.z,...meta});
-    closeSeq(result,w.z,obtention==='OBTENIDO'?'POSITIVA':'NEGATIVA');st.team=other(committedBy);save();render();return
+    closeSeq(result,w.z,obtention==='OBTENIDO'?'POSITIVA':'NEGATIVA');st.team=beneficiary;save();render();return
   }
   const obtention=w.scrumResult;
   if(obtention==='NO OBTENIDO'){openSeq('SCRUM',w.z,{side:w.side,obtention});st.launches.push({team:scrumTeam,type:'SCRUM',z:w.z,side:w.side,obtention});await resolveSetPieceNotObtained('SCRUM',w.z);return}
@@ -1781,15 +1841,17 @@ function parseVoiceCommand(raw){
 
   if(voiceHas(t,'line','lineout')){
     const lm=voiceLineMen(t);
+    const lineResult=voiceHas(t,'free kick')?'FREE KICK':voiceHas(t,'penal')?'PENAL':voiceHas(t,'no obtenido','perdido','pierde')?'NO OBTENIDO':voiceHas(t,'obtenido','ganado','gana')?'OBTENIDO':null;
     return {type:'LINE',team,zone:zones[0]||null,men:lm.men,plusOne:lm.plusOne,
       throw:voiceHas(t,'adelante')?'ADELANTE':voiceHas(t,'medio','mitad')?'MEDIO':voiceHas(t,'cola','atras','fondo')?'COLA':null,
-      obtention:voiceHas(t,'no obtenido','perdido','pierde')?'NO OBTENIDO':voiceHas(t,'obtenido','ganado','gana')?'OBTENIDO':null,
+      lineResult,
       maul:voiceHas(t,'no maul','sin maul')?'NO MAUL':voiceHas(t,'maul')?'MAUL':null};
   }
   if(voiceHas(t,'scrum')){
+    const scrumResult=voiceHas(t,'free kick')?'FREE KICK':voiceHas(t,'penal')?'PENAL':voiceHas(t,'no obtenido','perdido','pierde')?'NO OBTENIDO':voiceHas(t,'obtenido','ganado','gana')?'OBTENIDO':null;
     return {type:'SCRUM',team,zone:zones[0]||null,
       side:voiceHas(t,'izquierda')?'IZQUIERDA':voiceHas(t,'derecha')?'DERECHA':voiceHas(t,'centro','central')?'CENTRAL':null,
-      obtention:voiceHas(t,'no obtenido','perdido','pierde')?'NO OBTENIDO':voiceHas(t,'obtenido','ganado','gana')?'OBTENIDO':null};
+      scrumResult};
   }
   if(voiceHas(t,'recepcion kick','recepcion de kick','recibe kick')){
     return {type:'RECEPCIÓN KICK',team,zone:zones[0]||null};
@@ -1839,27 +1901,37 @@ async function applyVoiceCommand(cmd){
   if(cmd.type==='LINE'){
     if(!(await canStart()))return;
     if(cmd.team)st.team=cmd.team;
+    const lineTeam=st.team;
     const z=cmd.zone||await zone('VOZ · LINE · zona');
     const men=cmd.men||await flow('VOZ · LINE · hombres',['3','4','5','6','7']);
     const plusOne=cmd.plusOne||false;
     const thr=cmd.throw||await flow('VOZ · LINE · tiro',['ADELANTE','MEDIO','COLA']);
-    const obtention=cmd.obtention||await flow('VOZ · LINE · obtención',['OBTENIDO','NO OBTENIDO']);
+    const lineResult=cmd.lineResult||await flow('VOZ · LINE · resultado',['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']);
     const lineStructure=plusOne?`${men}+1`:men;
-    const meta={men,plusOne,lineStructure,throw:thr,obtention,maul:cmd.maul||'—'};
-    if(obtention==='OBTENIDO'&&!cmd.maul)meta.maul=await flow('VOZ · LINE · maul',['MAUL','NO MAUL']);
-    openSeq('LINE',z,meta);st.launches.push({team:st.team,type:'LINE',z,...meta});save();render();
-    if(obtention==='NO OBTENIDO')await resolveSetPieceNotObtained('LINE',z);
-    return;
+    let offender=null;if(lineResult==='PENAL'||lineResult==='FREE KICK'){const who=await flow('VOZ · LINE · ¿quién comete la infracción?',['URU',st.opponent]);offender=who==='URU'?'URU':'RIVAL'}
+    const obtainingTeam=offender?other(offender):null,obtention=offender?(obtainingTeam===lineTeam?'OBTENIDO':'NO OBTENIDO'):lineResult;
+    const meta={men,plusOne,lineStructure,throw:thr,obtention,maul:lineResult==='OBTENIDO'?(cmd.maul||await flow('VOZ · LINE · maul',['MAUL','NO MAUL'])):(offender?'—':'NO MAUL'),...(offender?{lineSanction:lineResult,lineCommittedBy:offender}:{})};
+    if(lineResult==='PENAL'){meta.penaltyReason='LINE';meta.penaltyPhase=penaltyPhaseFor(offender,lineTeam);if(offender==='URU'){const jersey=await flow('VOZ · LINE · penal URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);meta.penaltyJersey=jersey;meta.penaltyPlayer=st.roster?.[String(jersey)]||null}}
+    openSeq('LINE',z,meta);st.launches.push({team:lineTeam,type:'LINE',z,...meta});
+    if(lineResult==='PENAL'){closeSeq(offender==='URU'?'PENAL URU':'PENAL RIVAL',z,offender===lineTeam?'NEGATIVA':'POSITIVA');st.team=other(offender);save();render();return}
+    if(lineResult==='FREE KICK'){closeSeq(obtainingTeam==='URU'?'FREE KICK URU':'FREE KICK RIVAL',z,offender===lineTeam?'NEGATIVA':'POSITIVA');st.team=obtainingTeam;save();render();return}
+    save();render();if(obtention==='NO OBTENIDO')await resolveSetPieceNotObtained('LINE',z);return;
   }
   if(cmd.type==='SCRUM'){
     if(!(await canStart()))return;
     if(cmd.team)st.team=cmd.team;
+    const scrumTeam=st.team;
     const z=cmd.zone||await zone('VOZ · SCRUM · zona');
     const side=cmd.side||await flow('VOZ · SCRUM · ubicación',['IZQUIERDA','CENTRAL','DERECHA']);
-    const obtention=cmd.obtention||await flow('VOZ · SCRUM · obtención',['OBTENIDO','NO OBTENIDO']);
-    openSeq('SCRUM',z,{side,obtention});st.launches.push({team:st.team,type:'SCRUM',z,side,obtention});save();render();
-    if(obtention==='NO OBTENIDO')await resolveSetPieceNotObtained('SCRUM',z);
-    return;
+    const scrumResult=cmd.scrumResult||await flow('VOZ · SCRUM · resultado',['OBTENIDO','NO OBTENIDO','PENAL','FREE KICK']);
+    if(scrumResult==='PENAL'||scrumResult==='FREE KICK'){
+      const against=await flow('VOZ · SCRUM · ¿a quién le cobran la sanción?',['OFENSIVO','DEFENSIVO']);
+      const committedBy=against==='OFENSIVO'?scrumTeam:other(scrumTeam),beneficiary=other(committedBy),obtention=against==='DEFENSIVO'?'OBTENIDO':'NO OBTENIDO',isPenalty=scrumResult==='PENAL';
+      const meta={side,obtention,scrumPenalty:isPenalty,scrumFreeKick:!isPenalty,penaltyAgainst:against,penaltyCommittedBy:committedBy,penaltyUruguay:committedBy==='URU'?'EN CONTRA':'A FAVOR'};
+      if(isPenalty){meta.penaltyReason='SCRUM';meta.penaltyPhase=against==='OFENSIVO'?'ATAQUE':'DEFENSA';if(committedBy==='URU'){const jersey=await flow('VOZ · SCRUM · penal URU · Nº camiseta',['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23']);meta.penaltyJersey=jersey;meta.penaltyPlayer=st.roster?.[String(jersey)]||null}}
+      openSeq('SCRUM',z,meta);st.launches.push({team:scrumTeam,type:'SCRUM',z,...meta});closeSeq(isPenalty?(committedBy==='URU'?'PENAL URU':'PENAL RIVAL'):(beneficiary==='URU'?'FREE KICK URU':'FREE KICK RIVAL'),z,obtention==='OBTENIDO'?'POSITIVA':'NEGATIVA');st.team=beneficiary;save();render();return;
+    }
+    const obtention=scrumResult;openSeq('SCRUM',z,{side,obtention});st.launches.push({team:scrumTeam,type:'SCRUM',z,side,obtention});save();render();if(obtention==='NO OBTENIDO')await resolveSetPieceNotObtained('SCRUM',z);return;
   }
   if(['RECEPCIÓN KICK','TAP PENAL','FREE KICK'].includes(cmd.type)){
     if(!(await canStart()))return;
@@ -1906,7 +1978,7 @@ async function applyVoiceCommand(cmd){
     const committed=cmd.committedBy||await flow('VOZ · PENAL · quién lo cometió',['URU',st.opponent]);
     const result=committed==='URU'?'PENAL URU':'PENAL RIVAL';
     if(result==='PENAL URU'){
-      const reason=cmd.reason||await flow('VOZ · PENAL URU · motivo',['PESCA','BREAKDOWN · DE CABEZA','BREAKDOWN · DE COSTADO','OFFSIDE','NO RELEASE','NO SALE TACKLEADOR','MAUL','LINE','OTRO']);
+      const phase=penaltyPhaseFor('URU',st.sequence?.team||st.team);const reason=cmd.reason||await flow(`VOZ · PENAL URU · ${phase} · motivo`,penaltyReasonsForPhase(phase));
       const jersey=cmd.jersey||await flow('VOZ · PENAL URU · dorsal',Array.from({length:23},(_,i)=>String(i+1)));
       st.sequence.meta={...(st.sequence.meta||{}),penaltyReason:reason,penaltyJersey:jersey,penaltyPlayer:st.roster?.[String(jersey)]||null};
     }
