@@ -1,1 +1,1 @@
-Los Teros Live V3.9.16 - 22m entries shown explicitly from Uruguay perspective: URU attack effectiveness and Uruguay defensive success vs rival entries. Plain site URL remains open staff access.
+Los Teros Live V3.9.19 - Scrum RESET. RESET closes/discards an open scrum and immediately starts a new one; it does not count for obtention and does not appear in the Scrum dashboard.

@@ -1128,3 +1128,5 @@
   .penalty-header-ribbon .penalty-run-team{font-size:6px}
   .penalty-header-ribbon .penalty-run-chip b{font-size:8px}
 }
+.choice.reset-choice{background:#fff7e6!important;color:#9a5b00!important;border-color:#e4ad4d!important}
+.choice.reset-choice:hover{background:#ffefc7!important}
